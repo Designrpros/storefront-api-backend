@@ -2,7 +2,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // Assuming you've initialized the Firebase Admin SDK correctly (globally or within this file)
 const admin = require('firebase-admin');
-const serviceAccount = require('.../firebase-service-account.json');
+const serviceAccount = require('../firebase-service-account.json');
 
 // Initialize Firebase Admin SDK if not already initialized
 if (!admin.apps.length) {
