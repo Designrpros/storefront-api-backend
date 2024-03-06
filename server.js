@@ -2,13 +2,15 @@ require('dotenv').config();
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const cors = require('cors');
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 // Assuming you've initialized Firebase Admin SDK correctly somewhere above this line
 const admin = require('firebase-admin');
 const { db } = require('./firebaseAdmin');
 
 
 console.log("Stripe Secret Key:", process.env.STRIPE_SECRET_KEY);
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const app = express();
 
@@ -72,19 +74,48 @@ app.post('/create-checkout-session', async (req, res) => {
   }
 });
 
-// Setup NodeMailer transporter
-let transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS,
-  },
-});
+
 
 // Define the shop owner's email address
 const shopOwnerEmail = 'designr.pros@gmail.com';
 
 app.post('/webhook', express.raw({type: 'application/json'}), async (request, response) => {
+  // Your existing code for handling the webhook event
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+
+    // Send email to the customer
+    const customerEmail = {
+      to: session.customer_details.email,
+      from: 'designr.pros@gmail.com', // Use the email address verified with SendGrid
+      subject: 'Order Confirmation',
+      text: 'Thank you for your order! Your order is being processed.',
+      html: '<strong>Thank you for your order! Your order is being processed.</strong>',
+    };
+
+    sgMail.send(customerEmail).then(() => {
+      console.log('Confirmation email sent to customer');
+    }).catch((error) => {
+      console.error('Error sending email to customer:', error);
+    });
+
+    // Send email to the shop owner
+    const shopOwnerEmailContent = {
+      to: shopOwnerEmail,
+      from: 'designr.pros@gmail.com', // Use the email address verified with SendGrid
+      subject: 'New Order Received',
+      text: `A new order has been received from ${session.customer_details.email}. Please check the dashboard for more details.`,
+      html: `<strong>A new order has been received from ${session.customer_details.email}. Please check the dashboard for more details.</strong>`,
+    };
+
+    sgMail.send(shopOwnerEmailContent).then(() => {
+      console.log('Notification email sent to shop owner');
+    }).catch((error) => {
+      console.error('Error sending email to shop owner:', error);
+    });
+  }
+
   const sig = request.headers['stripe-signature'];
 
   let event;
