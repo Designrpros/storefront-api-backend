@@ -31,31 +31,54 @@ const oAuth2Client = new google.auth.OAuth2(
 );
 oAuth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 
-async function sendMail(email, subject, message) {
+async function sendMail(email, subject, orderDetails, recipientType) {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: process.env.GMAIL_USER, // Your Gmail address
-      pass: process.env.GMAIL_APP_PASSWORD // Your App Password
-    }
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
   });
 
+  let emailBody;
+  if (recipientType === 'customer') {
+    emailBody = `
+      <h1>Ordrebekreftelse</h1>
+      <p>Takk for din bestilling, ${orderDetails.customerName}!</p>
+      <p>Her er detaljene for din bestilling:</p>
+      <ul>
+        ${orderDetails.items.map(item => `<li>${item.name} - Antall: ${item.quantity}, Pris per enhet: ${item.price} NOK</li>`).join('')}
+      </ul>
+      <p>Totalpris: ${orderDetails.totalPrice} NOK</p>
+      <p>Vi vil sende deg en ny e-post når bestillingen din er sendt.</p>
+    `;
+  } else if (recipientType === 'shopOwner') {
+    emailBody = `
+      <h1>Ny Ordre Mottatt</h1>
+      <p>Du har mottatt en ny bestilling fra ${orderDetails.customerName}.</p>
+      <p>Her er detaljene for bestillingen:</p>
+      <ul>
+        ${orderDetails.items.map(item => `<li>${item.name} - Antall: ${item.quantity}, Pris per enhet: ${item.price} NOK</li>`).join('')}
+      </ul>
+      <p>Totalpris: ${orderDetails.totalPrice} NOK</p>
+    `;
+  }
+
   const mailOptions = {
-    from: `Høl i CVen <${process.env.GMAIL_USER}>`, // Sender address
-    to: email, // List of recipients
-    subject: subject, // Subject line
-    text: message, // Plain text body
-    html: `<p>${message}</p>`, // HTML body
+    from: `Høl i CVen <${process.env.GMAIL_USER}>`,
+    to: email,
+    subject: subject,
+    html: emailBody,
   };
 
   try {
     const result = await transporter.sendMail(mailOptions);
     console.log('Email sent:', result);
-    return result;
   } catch (error) {
     console.error('Failed to send email', error);
   }
 }
+
 
 
 app.post('/create-checkout-session', async (req, res) => {
@@ -122,11 +145,11 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
   if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
 
-      // Example: Send email to customer
-      await sendMail(session.customer_details.email, "Ordre Bekreftelse", "Takk for din bestilling!");
+    // Example: Send email to customer
+    await sendMail(session.customer_details.email, "Ordre Bekreftelse", orderDetails, 'customer');
 
-      // Example: Send email to shop owner
-      await sendMail("designr.pros@gmail.com", "ny Ordre Mottatt", `Ordre mottat fra ${session.customer_details.email}.`);
+    // Example: Send email to shop owner
+    await sendMail("designr.pros@gmail.com", "Ny Ordre Mottatt", orderDetails, 'shopOwner');
 
       console.log('Checkout session completed:', session.id);
   } else {
