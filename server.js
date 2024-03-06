@@ -122,21 +122,20 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
 
-    // Retrieve the session with expanded line items
+    // Retrieve the session with expanded line items and their associated products
     const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
-      expand: ['line_items.data.product']
+      expand: ['line_items.data.price.product']
     });
 
     // Extract product names and quantities
     const productDetails = fullSession.line_items.data.map(item => {
-      return `${item.description} - Quantity: ${item.quantity}`;
+      const productName = item.price.product.name; // Assuming product name is stored here
+      return `${productName} - Quantity: ${item.quantity}`;
     }).join('<br>');
 
-    // Attempt to directly access shipping details from the session object
-    let shippingDetails = 'No shipping information provided';
-    if (session.shipping) {
-      shippingDetails = `Address: ${session.shipping.address.line1}, ${session.shipping.address.city}, ${session.shipping.address.postal_code}, ${session.shipping.address.country}`;
-    }
+    // Access shipping details directly from the session object
+    const shipping = session.shipping;
+    const shippingDetails = shipping ? `Address: ${shipping.address.line1}, ${shipping.address.city}, ${shipping.address.postal_code}, ${shipping.address.country}` : 'No shipping information provided';
 
     // Construct email messages
     const messageForCustomer = `
@@ -170,8 +169,6 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
 
   response.json({received: true});
 });
-
-
 
 
 const PORT = process.env.PORT || 4242;
