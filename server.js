@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const bodyParser = require('body-parser');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const cors = require('cors');
 const nodemailer = require('nodemailer');
@@ -73,33 +74,33 @@ let transporter = nodemailer.createTransport({
   },
 });
 
+// Define the webhook route separately and use express.raw middleware for it
 app.post('/webhook', express.raw({type: 'application/json'}), async (request, response) => {
   const sig = request.headers['stripe-signature'];
 
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(
+      request.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
   } catch (err) {
+    console.log(`⚠️  Webhook signature verification failed.`, err.message);
     return response.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle the checkout.session.completed event
+  // Handle the event
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-
-    // Here you can extract more details from session if needed
-    // and save them to Firestore
-    const orderRef = db.collection('orders').doc(session.id);
-    await orderRef.set({
-      customerEmail: session.customer_details.email, // or customerEmail from metadata if you stored it there
-      // Add other order details you need
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    console.log(`Order ${session.id} saved to Firestore.`);
+    // Handle the checkout session completion
+    console.log(`🔔  Payment received!`);
+  } else {
+    console.warn(`🔔  Webhook received unhandled event type: ${event.type}`);
   }
 
+  // Return a response to acknowledge receipt of the event
   response.json({received: true});
 });
 
