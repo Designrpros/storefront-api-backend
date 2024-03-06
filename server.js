@@ -175,6 +175,7 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
 
   // Now it's safe to log fullSession
   console.log(JSON.stringify(fullSession, null, 2));
+  console.log(JSON.stringify(session, null, 2));
 
 });
 
