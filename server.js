@@ -120,7 +120,8 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-
+    (console.log(JSON.stringify(session, null, 2));)
+    
     // Retrieve the session with expanded line items and their associated products
     const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
       expand: ['line_items.data.price.product']
@@ -134,7 +135,7 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
 
     // Access shipping details directly from the session object
     const shipping = session.shipping;
-    const shippingDetails = shipping ? `Address: ${shipping.address.line1}, ${shipping.address.city}, ${shipping.address.postal_code}, ${shipping.address.country}` : 'No shipping information provided';
+    const shippingDetails = shipping ? `Address: ${shipping.address.line1}, ${shipping.address.city}, ${shipping.address.postal_code}, ${shipping.address.country}` : 'No shipping information provided, check stripes dashboard, under payments, and compare the order number';
 
     // Construct email messages
     const messageForCustomer = `
