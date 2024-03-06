@@ -1,6 +1,6 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-module.exports = async (req, res) => {
+exports.handler = async (req, res) => {
     console.log("Received request:", req.method, req.url);
 
     // Set CORS headers (replace `'*'` with specific allowed origins/methods in production)
@@ -55,9 +55,9 @@ module.exports = async (req, res) => {
         });
 
         console.log("Stripe checkout session created:", session.id); // Log checkout session creation
-        res.json({ id: session.id });
+        res.status(200).json({ id: session.id }); // Respond with session ID and status code 200 (OK)
     } catch (error) {
         console.error("Error creating Stripe checkout session:", error); // Log error message
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error.message }); // Respond with error message and status code 500 (Internal Server Error)
     }
 };
