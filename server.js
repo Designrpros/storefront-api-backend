@@ -7,7 +7,6 @@ const nodemailer = require('nodemailer');
 const admin = require('firebase-admin');
 const { db } = require('./firebaseAdmin');
 const {google} = require('googleapis');
-const OAuth2Data = require('./google_key.json');
 
 console.log("Stripe Secret Key:", process.env.STRIPE_SECRET_KEY);
 
