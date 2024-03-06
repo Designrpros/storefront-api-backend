@@ -122,9 +122,9 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
 
-    // Retrieve the session with expanded line items if not already included
+    // Retrieve the session with expanded line items and shipping details
     const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
-      expand: ['line_items.data']
+      expand: ['line_items.data', 'shipping_details']
     });
 
     // Extract product names and quantities
@@ -133,7 +133,7 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
     }).join('<br>');
 
     // Extract shipping information
-    const shippingDetails = session.shipping ? `Address: ${session.shipping.address.line1}, ${session.shipping.address.city}, ${session.shipping.address.postal_code}, ${session.shipping.address.country}` : 'No shipping information';
+    const shippingDetails = fullSession.shipping_address ? `Address: ${fullSession.shipping_address.line1}, ${fullSession.shipping_address.city}, ${fullSession.shipping_address.postal_code}, ${fullSession.shipping_address.country}` : 'No shipping information provided';
 
     // Construct email messages
     const messageForCustomer = `
@@ -142,12 +142,23 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
       <p>Order Number: ${session.id}</p>
       <p>Products:<br>${productDetails}</p>
       <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
-      <p>${shippingDetails}</p>
+      <p>Shipping Details:<br>${shippingDetails}</p>
     `;
 
-    // Assuming you have a function to send emails
+    const messageForShopOwner = `
+      <h1>New Order Received</h1>
+      <p>A new order has been placed. Order Number: ${session.id}</p>
+      <p>Products:<br>${productDetails}</p>
+      <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+      <p>Customer Email: ${session.customer_details.email}</p>
+      <p>Shipping Details:<br>${shippingDetails}</p>
+    `;
+
+    // Send email to customer
     await sendMail(session.customer_details.email, "Order Confirmation", messageForCustomer);
-    // Additional logic for shop owner email...
+
+    // Send email to shop owner
+    await sendMail("shopowner@example.com", "New Order Received", messageForShopOwner);
 
     console.log('Checkout session completed:', session.id);
   } else {
@@ -156,6 +167,7 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
 
   response.json({received: true});
 });
+
 
 
 const PORT = process.env.PORT || 4242;
