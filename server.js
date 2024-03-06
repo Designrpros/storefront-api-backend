@@ -31,7 +31,7 @@ const oAuth2Client = new google.auth.OAuth2(
 );
 oAuth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 
-async function sendMail(email, subject, message) {
+async function sendMail(email, subject, orderDetails) {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -40,12 +40,24 @@ async function sendMail(email, subject, message) {
     }
   });
 
+  // Constructing the email body with order details
+  const emailBody = `
+    <h1>Ordrebekreftelse</h1>
+    <p>Takk for din bestilling!</p>
+    <p>Ordrenummer: ${orderDetails.id}</p>
+    <p>Produkter:</p>
+    <ul>
+      ${orderDetails.items.map(item => `<li>${item.name} - Antall: ${item.quantity}</li>`).join('')}
+    </ul>
+    <p>Totalpris: ${orderDetails.totalPrice} NOK</p>
+    <p>Vi vil sende deg en ny e-post når bestillingen din er sendt.</p>
+  `;
+
   const mailOptions = {
     from: `Høl i CVen <${process.env.GMAIL_USER}>`, // Sender address
     to: email, // List of recipients
     subject: subject, // Subject line
-    text: message, // Plain text body
-    html: `<p>${message}</p>`, // HTML body
+    html: emailBody, // HTML body
   };
 
   try {
@@ -56,6 +68,7 @@ async function sendMail(email, subject, message) {
     console.error('Failed to send email', error);
   }
 }
+
 
 
 app.post('/create-checkout-session', async (req, res) => {
@@ -135,56 +148,6 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
 
   response.json({received: true});
 });
-
-// Add this route to your server.js
-app.get('/auth', (req, res) => {
-  const scopes = [
-    'https://www.googleapis.com/auth/gmail.send'
-  ];
-
-  const url = oAuth2Client.generateAuthUrl({
-    // 'online' (default) or 'offline' (gets refresh_token)
-    access_type: 'offline',
-
-    // If you only need one scope you can pass it as a string
-    scope: scopes,
-
-    // Enable the "prompt" parameter to "consent" to ensure you get a refresh token
-    prompt: 'consent'
-  });
-
-  console.log('Visit the url for the auth dialog: ', url);
-  res.send(`Visit the url to authenticate: <a href="${url}">${url}</a>`);
-});
-
-
-// OAuth2 callback endpoint
-app.get('/oauth2callback', async (req, res) => {
-  const { code } = req.query;
-  if (!code) {
-    return res.status(400).send('Missing code in query string');
-  }
-  try {
-    const { tokens } = await oAuth2Client.getToken(code);
-    //console.log("Tokens received:", tokens); // Temporarily log tokens
-
-    // IMPORTANT: Remove or comment out the above log statement in production
-
-    oAuth2Client.setCredentials(tokens);
-
-    // Securely store the refresh token for later use
-    // Example: Store the refresh token in your database
-    // await storeRefreshToken(tokens.refresh_token, userIdentifier);
-
-    res.send('Authentication successful! You can close this window.');
-  } catch (error) {
-    console.error('Error exchanging code for tokens:', error);
-    res.status(500).send('Authentication failed');
-  }
-});
-
-
-
 
 
 const PORT = process.env.PORT || 4242;
