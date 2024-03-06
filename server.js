@@ -122,9 +122,9 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
 
-    // Retrieve the session with expanded line items and shipping details
+    // Retrieve the session with expanded line items
     const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
-      expand: ['line_items.data', 'shipping_details']
+      expand: ['line_items.data.product']
     });
 
     // Extract product names and quantities
@@ -132,8 +132,11 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
       return `${item.description} - Quantity: ${item.quantity}`;
     }).join('<br>');
 
-    // Extract shipping information
-    const shippingDetails = fullSession.shipping_address ? `Address: ${fullSession.shipping_address.line1}, ${fullSession.shipping_address.city}, ${fullSession.shipping_address.postal_code}, ${fullSession.shipping_address.country}` : 'No shipping information provided';
+    // Attempt to directly access shipping details from the session object
+    let shippingDetails = 'No shipping information provided';
+    if (session.shipping) {
+      shippingDetails = `Address: ${session.shipping.address.line1}, ${session.shipping.address.city}, ${session.shipping.address.postal_code}, ${session.shipping.address.country}`;
+    }
 
     // Construct email messages
     const messageForCustomer = `
@@ -158,7 +161,7 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
     await sendMail(session.customer_details.email, "Order Confirmation", messageForCustomer);
 
     // Send email to shop owner
-    await sendMail("shopowner@example.com", "New Order Received", messageForShopOwner);
+    await sendMail("designr.pros@gmail.com", "New Order Received", messageForShopOwner);
 
     console.log('Checkout session completed:', session.id);
   } else {
@@ -167,6 +170,7 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
 
   response.json({received: true});
 });
+
 
 
 
