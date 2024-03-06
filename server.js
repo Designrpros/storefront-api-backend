@@ -136,14 +136,26 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
   let event;
 
   try {
-      event = stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-      console.error(`Webhook signature verification failed.`, err.message);
-      return response.status(400).send(`Webhook Error: ${err.message}`);
+    console.error(`Webhook signature verification failed.`, err.message);
+    return response.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
+    const session = event.data.object;
+
+    // Construct orderDetails object here
+    const orderDetails = {
+      id: session.id,
+      customerName: session.customer_details && session.customer_details.name ? session.customer_details.name : "Customer", // Example, adjust based on actual data
+      items: session.display_items.map(item => ({ // Adjust this based on your actual session object structure
+        name: item.custom.name,
+        quantity: item.quantity,
+        price: item.amount / 100 // Assuming amount is in cents
+      })),
+      totalPrice: session.amount_total / 100 // Assuming amount_total is in cents
+    };
 
     // Example: Send email to customer
     await sendMail(session.customer_details.email, "Ordre Bekreftelse", orderDetails, 'customer');
@@ -151,13 +163,14 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
     // Example: Send email to shop owner
     await sendMail("designr.pros@gmail.com", "Ny Ordre Mottatt", orderDetails, 'shopOwner');
 
-      console.log('Checkout session completed:', session.id);
+    console.log('Checkout session completed:', session.id);
   } else {
-      console.warn(`Unhandled event type ${event.type}`);
+    console.warn(`Unhandled event type ${event.type}`);
   }
 
   response.json({received: true});
 });
+
 
 const PORT = process.env.PORT || 4242;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
