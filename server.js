@@ -2,15 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const cors = require('cors');
-const sgMail = require('@sendgrid/mail');
+const nodemailer = require('nodemailer');
 // Assuming you've initialized Firebase Admin SDK correctly somewhere above this line
 const admin = require('firebase-admin');
 const { db } = require('./firebaseAdmin');
-
+const {google} = require('googleapis');
+const OAuth2Data = require('./google_key.json');
 
 console.log("Stripe Secret Key:", process.env.STRIPE_SECRET_KEY);
-
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const app = express();
 
@@ -24,6 +23,44 @@ app.use((req, res, next) => {
     express.json()(req, res, next);
   }
 });
+
+// OAuth2 client setup
+const oAuth2Client = new google.auth.OAuth2(
+  process.env.CLIENT_ID,
+  process.env.CLIENT_SECRET,
+  process.env.REDIRECT_URI
+);
+oAuth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
+
+async function sendMail(email, subject, message) {
+  try {
+    const accessToken = await oAuth2Client.getAccessToken();
+    const transport = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type: 'OAuth2',
+        user: process.env.GMAIL_USER,
+        clientId: process.env.CLIENT_ID,
+        clientSecret: process.env.CLIENT_SECRET,
+        refreshToken: process.env.REFRESH_TOKEN,
+        accessToken: accessToken.token,
+      },
+    });
+
+    const mailOptions = {
+      from: `Your Name <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: subject,
+      text: message,
+      html: `<p>${message}</p>`,
+    };
+
+    const result = await transport.sendMail(mailOptions);
+    return result;
+  } catch (error) {
+    console.error('Failed to send email', error);
+  }
+}
 
 app.post('/create-checkout-session', async (req, res) => {
   console.log("Received request for checkout session creation:", req.body);
@@ -74,101 +111,87 @@ app.post('/create-checkout-session', async (req, res) => {
   }
 });
 
-
-
-// Define the shop owner's email address
-const shopOwnerEmail = 'designr.pros@gmail.com';
+// Setup NodeMailer transporter
+let transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS,
+  },
+  debug: true, // Show debug output
+  logger: true // Log information in console
+});
 
 app.post('/webhook', express.raw({type: 'application/json'}), async (request, response) => {
-  // Your existing code for handling the webhook event
-
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-
-    // Send email to the customer
-    const customerEmail = {
-      to: session.customer_details.email,
-      from: 'designr.pros@gmail.com', // Use the email address verified with SendGrid
-      subject: 'Order Confirmation',
-      text: 'Thank you for your order! Your order is being processed.',
-      html: '<strong>Thank you for your order! Your order is being processed.</strong>',
-    };
-
-    sgMail.send(customerEmail).then(() => {
-      console.log('Confirmation email sent to customer');
-    }).catch((error) => {
-      console.error('Error sending email to customer:', error);
-    });
-
-    // Send email to the shop owner
-    const shopOwnerEmailContent = {
-      to: shopOwnerEmail,
-      from: 'designr.pros@gmail.com', // Use the email address verified with SendGrid
-      subject: 'New Order Received',
-      text: `A new order has been received from ${session.customer_details.email}. Please check the dashboard for more details.`,
-      html: `<strong>A new order has been received from ${session.customer_details.email}. Please check the dashboard for more details.</strong>`,
-    };
-
-    sgMail.send(shopOwnerEmailContent).then(() => {
-      console.log('Notification email sent to shop owner');
-    }).catch((error) => {
-      console.error('Error sending email to shop owner:', error);
-    });
-  }
-
   const sig = request.headers['stripe-signature'];
 
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+      event = stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.log(`⚠️ Webhook signature verification failed.`, err.message);
-    return response.status(400).send(`Webhook Error: ${err.message}`);
+      console.error(`Webhook signature verification failed.`, err.message);
+      return response.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
+      const session = event.data.object;
 
-    // Send email to the customer
-    const customerEmailOptions = {
-      from: process.env.GMAIL_USER,
-      to: session.customer_details.email, // Customer's email address from the session object
-      subject: 'Order Confirmation',
-      text: 'Thank you for your order! Your order is being processed.',
-    };
+      // Example: Send email to customer
+      await sendMail(session.customer_details.email, "Order Confirmation", "Thank you for your order!");
 
-    transporter.sendMail(customerEmailOptions, function(error, info) {
-      if (error) {
-        console.log('Error sending email to customer:', error);
-      } else {
-        console.log('Confirmation email sent to customer:', info.response);
-      }
-    });
+      // Example: Send email to shop owner
+      await sendMail("designr.pros@gmail.com", "New Order Received", `Order received from ${session.customer_details.email}.`);
 
-    // Send email to the shop owner
-    const shopOwnerEmailOptions = {
-      from: process.env.GMAIL_USER,
-      to: shopOwnerEmail,
-      subject: 'New Order Received',
-      text: `A new order has been received from ${session.customer_details.email}. Please check the dashboard for more details.`,
-    };
-
-    transporter.sendMail(shopOwnerEmailOptions, function(error, info) {
-      if (error) {
-        console.log('Error sending email to shop owner:', error);
-      } else {
-        console.log('Notification email sent to shop owner:', info.response);
-      }
-    });
-
-    console.log('Checkout session completed:', session.id);
+      console.log('Checkout session completed:', session.id);
   } else {
-    console.warn(`Unhandled event type ${event.type}`);
+      console.warn(`Unhandled event type ${event.type}`);
   }
 
   response.json({received: true});
 });
+
+// Add this route to your server.js
+app.get('/auth', (req, res) => {
+  const scopes = [
+    'https://www.googleapis.com/auth/gmail.send'
+  ];
+
+  const url = oAuth2Client.generateAuthUrl({
+    // 'online' (default) or 'offline' (gets refresh_token)
+    access_type: 'offline',
+
+    // If you only need one scope you can pass it as a string
+    scope: scopes,
+
+    // Enable the "prompt" parameter to "consent" to ensure you get a refresh token
+    prompt: 'consent'
+  });
+
+  console.log('Visit the url for the auth dialog: ', url);
+  res.send(`Visit the url to authenticate: <a href="${url}">${url}</a>`);
+});
+
+
+// OAuth2 callback endpoint
+app.get('/oauth2callback', async (req, res) => {
+  const { code } = req.query;
+  if (!code) {
+    return res.status(400).send('Missing code in query string');
+  }
+  try {
+    const { tokens } = await oAuth2Client.getToken(code);
+    console.log("Tokens received:", tokens); // Log the tokens to see the refresh token
+    oAuth2Client.setCredentials(tokens);
+    // Save these tokens to your database for later use
+    res.send('Authentication successful! You can close this window.');
+  } catch (error) {
+    console.error('Error exchanging code for tokens:', error);
+    res.status(500).send('Authentication failed');
+  }
+});
+
+
 
 const PORT = process.env.PORT || 4242;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
