@@ -120,20 +120,46 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
   }
 
   if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
+    const session = event.data.object;
 
-      // Example: Send email to customer
-      await sendMail(session.customer_details.email, "Order Confirmation", "Thank you for your order!");
+    // Get the order ID from the metadata
+    const orderId = session.metadata.orderId;
 
-      // Example: Send email to shop owner
-      await sendMail("designr.pros@gmail.com", "New Order Received", `Order received from ${session.customer_details.email}.`);
+    // Construct the email message for the customer
+    let customerEmailMessage = `Thank you for your order!\n`;
+    customerEmailMessage += `Your order number is: ${orderId}\n`;
+    customerEmailMessage += `\n`;
+    customerEmailMessage += `Here's a summary of your order:\n`;
 
-      console.log('Checkout session completed:', session.id);
-  } else {
-      console.warn(`Unhandled event type ${event.type}`);
-  }
+    // Loop through each line item in the session and add product details
+    for (const item of session.line_items) {
+      customerEmailMessage += `- ${item.quantity} x ${item.price_data.product_data.name}\n`;
+    }
 
-  response.json({received: true});
+    // Send email to the customer
+    await sendMail(session.customer_details.email, "Order Confirmation", customerEmailMessage);
+
+    // Construct the email message for the shop owner
+    let shopOwnerEmailMessage = `New order received!\n`;
+    shopOwnerEmailMessage += `Order number: ${orderId}\n`;
+    shopOwnerEmailMessage += `Customer email: ${session.customer_details.email}\n`;
+    shopOwnerEmailMessage += `\n`;
+    shopOwnerEmailMessage += `Here's a summary of the order:\n`;
+
+    // Loop through each line item in the session and add product details
+    for (const item of session.line_items) {
+      shopOwnerEmailMessage += `- ${item.quantity} x ${item.price_data.product_data.name}\n`;
+    }
+
+    // Send email to the shop owner
+    await sendMail("designr.pros@gmail.com", "New Order Received", shopOwnerEmailMessage);
+
+    console.log('Checkout session completed:', session.id);
+} else {
+    console.warn(`Unhandled event type ${event.type}`);
+}
+
+response.json({received: true});
 });
 
 // Add this route to your server.js
