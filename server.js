@@ -5,7 +5,6 @@ const cors = require('cors');
 const nodemailer = require('nodemailer');
 // Assuming you've initialized Firebase Admin SDK correctly somewhere above this line
 const admin = require('firebase-admin');
-const { db } = require('./firebaseAdmin');
 const {google} = require('googleapis');
 
 console.log("Stripe Secret Key:", process.env.STRIPE_SECRET_KEY);
