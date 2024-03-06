@@ -120,7 +120,6 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    (console.log(JSON.stringify(session, null, 2));)
     
     // Retrieve the session with expanded line items and their associated products
     const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
@@ -169,6 +168,35 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
 
   response.json({received: true});
 
+});
+
+
+// Assuming you've already set up Express (`app`) and Firestore (`db`)
+
+app.get('/api/dashboard/metrics', async (req, res) => {
+  try {
+    // Example: Fetch total sales and order count
+    const ordersSnapshot = await db.collection('orders').get();
+    let totalSales = 0;
+    let ordersCount = ordersSnapshot.size;
+
+    ordersSnapshot.forEach(doc => {
+      const order = doc.data();
+      totalSales += order.totalAmount; // Ensure your order documents have a `totalAmount` field
+    });
+
+    // Example: Fetch total customer count
+    const customersCount = (await db.collection('customers').get()).size;
+
+    res.json({
+      totalSales,
+      ordersCount,
+      customersCount
+    });
+  } catch (error) {
+    console.error('Failed to fetch dashboard metrics:', error);
+    res.status(500).send('Internal Server Error');
+  }
 });
 
 
