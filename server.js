@@ -32,34 +32,31 @@ const oAuth2Client = new google.auth.OAuth2(
 oAuth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 
 async function sendMail(email, subject, message) {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER, // Your Gmail address
+      pass: process.env.GMAIL_APP_PASSWORD // Your App Password
+    }
+  });
+
+  const mailOptions = {
+    from: `Høl i CVen <${process.env.GMAIL_USER}>`, // Sender address
+    to: email, // List of recipients
+    subject: subject, // Subject line
+    text: message, // Plain text body
+    html: `<p>${message}</p>`, // HTML body
+  };
+
   try {
-    const accessToken = await oAuth2Client.getAccessToken();
-    const transport = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        type: 'OAuth2',
-        user: process.env.GMAIL_USER,
-        clientId: process.env.CLIENT_ID,
-        clientSecret: process.env.CLIENT_SECRET,
-        refreshToken: process.env.REFRESH_TOKEN,
-        accessToken: accessToken.token,
-      },
-    });
-
-    const mailOptions = {
-      from: `Your Name <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: subject,
-      text: message,
-      html: `<p>${message}</p>`,
-    };
-
-    const result = await transport.sendMail(mailOptions);
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Email sent:', result);
     return result;
   } catch (error) {
     console.error('Failed to send email', error);
   }
 }
+
 
 app.post('/create-checkout-session', async (req, res) => {
   console.log("Received request for checkout session creation:", req.body);
@@ -108,17 +105,6 @@ app.post('/create-checkout-session', async (req, res) => {
     console.error("Error creating Stripe checkout session:", error);
     res.status(500).json({ error: error.message });
   }
-});
-
-// Setup NodeMailer transporter
-let transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS,
-  },
-  debug: true, // Show debug output
-  logger: true // Log information in console
 });
 
 app.post('/webhook', express.raw({type: 'application/json'}), async (request, response) => {
@@ -180,15 +166,24 @@ app.get('/oauth2callback', async (req, res) => {
   }
   try {
     const { tokens } = await oAuth2Client.getToken(code);
-    console.log("Tokens received:", tokens); // Log the tokens to see the refresh token
+    //console.log("Tokens received:", tokens); // Temporarily log tokens
+
+    // IMPORTANT: Remove or comment out the above log statement in production
+
     oAuth2Client.setCredentials(tokens);
-    // Save these tokens to your database for later use
+
+    // Securely store the refresh token for later use
+    // Example: Store the refresh token in your database
+    // await storeRefreshToken(tokens.refresh_token, userIdentifier);
+
     res.send('Authentication successful! You can close this window.');
   } catch (error) {
     console.error('Error exchanging code for tokens:', error);
     res.status(500).send('Authentication failed');
   }
 });
+
+
 
 
 
