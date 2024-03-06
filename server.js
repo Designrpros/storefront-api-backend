@@ -1,6 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-const bodyParser = require('body-parser');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const cors = require('cors');
 const nodemailer = require('nodemailer');
@@ -82,29 +81,63 @@ let transporter = nodemailer.createTransport({
   },
 });
 
-// Webhook route with express.raw() middleware applied specifically
+// Define the shop owner's email address
+const shopOwnerEmail = 'designr.pros@gmail.com';
+
 app.post('/webhook', express.raw({type: 'application/json'}), async (request, response) => {
   const sig = request.headers['stripe-signature'];
 
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(
-      request.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+    event = stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.log(`⚠️  Webhook signature verification failed.`, err.message);
+    console.log(`⚠️ Webhook signature verification failed.`, err.message);
     return response.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Process the webhook event
-  console.log('Webhook received and processed successfully:', event.type);
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+
+    // Send email to the customer
+    const customerEmailOptions = {
+      from: process.env.GMAIL_USER,
+      to: session.customer_details.email, // Customer's email address from the session object
+      subject: 'Order Confirmation',
+      text: 'Thank you for your order! Your order is being processed.',
+    };
+
+    transporter.sendMail(customerEmailOptions, function(error, info) {
+      if (error) {
+        console.log('Error sending email to customer:', error);
+      } else {
+        console.log('Confirmation email sent to customer:', info.response);
+      }
+    });
+
+    // Send email to the shop owner
+    const shopOwnerEmailOptions = {
+      from: process.env.GMAIL_USER,
+      to: shopOwnerEmail,
+      subject: 'New Order Received',
+      text: `A new order has been received from ${session.customer_details.email}. Please check the dashboard for more details.`,
+    };
+
+    transporter.sendMail(shopOwnerEmailOptions, function(error, info) {
+      if (error) {
+        console.log('Error sending email to shop owner:', error);
+      } else {
+        console.log('Notification email sent to shop owner:', info.response);
+      }
+    });
+
+    console.log('Checkout session completed:', session.id);
+  } else {
+    console.warn(`Unhandled event type ${event.type}`);
+  }
+
   response.json({received: true});
 });
-
-// Other routes can go here
 
 const PORT = process.env.PORT || 4242;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
