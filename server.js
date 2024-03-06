@@ -31,49 +31,31 @@ const oAuth2Client = new google.auth.OAuth2(
 );
 oAuth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 
-async function sendMail(email, subject, orderDetails, recipientType) {
-  // Define different email bodies for customer and shop owner
-  let emailBody;
-  if (recipientType === 'customer') {
-    emailBody = `
-      <h1>Ordrebekreftelse</h1>
-      <p>Takk for din bestilling!</p>
-      <p>Ordrenummer: ${orderDetails.id}</p>
-      <ul>
-        ${orderDetails.items.map(item => `<li>${item.name} - Antall: ${item.quantity}</li>`).join('')}
-      </ul>
-      <p>Totalpris: ${orderDetails.totalPrice} NOK</p>
-    `;
-  } else if (recipientType === 'shopOwner') {
-    // Construct a different email body for the shop owner
-    emailBody = `
-      <h1>Ny Ordre Mottatt</h1>
-      <p>En ny ordre har blitt plassert.</p>
-      <p>Ordrenummer: ${orderDetails.id}</p>
-      <ul>
-        ${orderDetails.items.map(item => `<li>${item.name} - Antall: ${item.quantity}</li>`).join('')}
-      </ul>
-      <p>Totalpris: ${orderDetails.totalPrice} NOK</p>
-    `;
-  }
+async function sendMail(email, subject, message) {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER, // Your Gmail address
+      pass: process.env.GMAIL_APP_PASSWORD // Your App Password
+    }
+  });
 
   const mailOptions = {
-    from: `Høl i CVen <${process.env.GMAIL_USER}>`,
-    to: email,
-    subject: subject,
-    html: emailBody,
+    from: `Høl i CVen <${process.env.GMAIL_USER}>`, // Sender address
+    to: email, // List of recipients
+    subject: subject, // Subject line
+    text: message, // Plain text body
+    html: `<p>${message}</p>`, // HTML body
   };
 
   try {
     const result = await transporter.sendMail(mailOptions);
     console.log('Email sent:', result);
+    return result;
   } catch (error) {
     console.error('Failed to send email', error);
   }
 }
-
-
-
 
 
 app.post('/create-checkout-session', async (req, res) => {
@@ -153,7 +135,6 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
 
   response.json({received: true});
 });
-
 
 const PORT = process.env.PORT || 4242;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
