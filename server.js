@@ -120,7 +120,6 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    console.log(JSON.stringify(fullSession, null, 2));
 
     // Retrieve the session with expanded line items and their associated products
     const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
@@ -168,6 +167,15 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
   }
 
   response.json({received: true});
+
+  // Correctly initialize and retrieve fullSession before using it
+  const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
+    expand: ['line_items.data.price.product']
+  });
+
+  // Now it's safe to log fullSession
+  console.log(JSON.stringify(fullSession, null, 2));
+
 });
 
 
