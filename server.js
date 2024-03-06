@@ -107,23 +107,29 @@ app.post('/create-checkout-session', async (req, res) => {
   }
 });
 
-app.post('/webhook', express.raw({type: 'application/json'}), async (request, response) => {
+app.post('/webhook', express.raw({ type: 'application/json' }), async (request, response) => {
   const sig = request.headers['stripe-signature'];
 
   let event;
 
   try {
-      event = stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-      console.error(`Webhook signature verification failed.`, err.message);
-      return response.status(400).send(`Webhook Error: ${err.message}`);
+    console.error(`Webhook signature verification failed.`, err.message);
+    return response.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
 
-    // Get the order ID from the metadata
-    const orderId = session.metadata.orderId;
+    // Get the order ID from the metadata (check for existence)
+    const orderId = session.metadata?.orderId;
+
+    // Handle missing order ID gracefully
+    if (!orderId) {
+      console.error('Order ID not found in session metadata');
+      return response.status(500).send('Internal server error: Missing order ID');
+    }
 
     // Construct the email message for the customer
     let customerEmailMessage = `Thank you for your order!\n`;
@@ -131,9 +137,13 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
     customerEmailMessage += `\n`;
     customerEmailMessage += `Here's a summary of your order:\n`;
 
-    // Loop through each line item in the session and add product details
-    for (const item of session.line_items) {
-      customerEmailMessage += `- ${item.quantity} x ${item.price_data.product_data.name}\n`;
+    // Check for existence of line_items before iterating
+    if (session.line_items) {
+      for (const item of session.line_items) {
+        customerEmailMessage += `- ${item.quantity} x ${item.price_data.product_data.name}\n`;
+      }
+    } else {
+      customerEmailMessage += 'No items in the order.\n';
     }
 
     // Send email to the customer
@@ -146,21 +156,26 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
     shopOwnerEmailMessage += `\n`;
     shopOwnerEmailMessage += `Here's a summary of the order:\n`;
 
-    // Loop through each line item in the session and add product details
-    for (const item of session.line_items) {
-      shopOwnerEmailMessage += `- ${item.quantity} x ${item.price_data.product_data.name}\n`;
+    // Check for existence of line_items before iterating
+    if (session.line_items) {
+      for (const item of session.line_items) {
+        shopOwnerEmailMessage += `- ${item.quantity} x ${item.price_data.product_data.name}\n`;
+      }
+    } else {
+      shopOwnerEmailMessage += 'No items in the order.\n';
     }
 
     // Send email to the shop owner
     await sendMail("designr.pros@gmail.com", "New Order Received", shopOwnerEmailMessage);
 
     console.log('Checkout session completed:', session.id);
-} else {
+  } else {
     console.warn(`Unhandled event type ${event.type}`);
-}
+  }
 
-response.json({received: true});
+  response.json({ received: true });
 });
+
 
 // Add this route to your server.js
 app.get('/auth', (req, res) => {
