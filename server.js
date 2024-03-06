@@ -120,21 +120,38 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
   }
 
   if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
+    const session = event.data.object;
 
-      // Example: Send email to customer
-      await sendMail(session.customer_details.email, "Ordre Bekreftelse", "Takk for din bestilling!");
+    // Construct a basic message with available session details
+    const messageForCustomer = `
+        <h1>Ordrebekreftelse</h1>
+        <p>Takk for din bestilling!</p>
+        <p>Din ordre er mottatt og blir behandlet. Ordrenummer: ${session.id}</p>
+        <p>Totalbeløp: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+        <p>Vi vil kontakte deg med mer informasjon snart.</p>
+    `;
 
-      // Example: Send email to shop owner
-      await sendMail("designr.pros@gmail.com", "ny Ordre Mottatt", `Ordre mottat fra ${session.customer_details.email}.`);
+    const messageForShopOwner = `
+        <h1>Ny Ordre Mottatt</h1>
+        <p>En ny ordre har blitt plassert. Ordrenummer: ${session.id}</p>
+        <p>Totalbeløp: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+        <p>Kundens e-post: ${session.customer_details.email}</p>
+    `;
 
-      console.log('Checkout session completed:', session.id);
-  } else {
-      console.warn(`Unhandled event type ${event.type}`);
-  }
+    // Send email to customer
+    await sendMail(session.customer_details.email, "Ordre Bekreftelse", messageForCustomer);
 
-  response.json({received: true});
+    // Send email to shop owner
+    await sendMail("designr.pros@gmail.com", "Ny Ordre Mottatt", messageForShopOwner);
+
+    console.log('Checkout session completed:', session.id);
+} else {
+  console.warn(`Unhandled event type ${event.type}`);
+}
+
+response.json({received: true});
 });
+
 
 const PORT = process.env.PORT || 4242;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
