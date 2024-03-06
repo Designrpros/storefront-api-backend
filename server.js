@@ -31,54 +31,31 @@ const oAuth2Client = new google.auth.OAuth2(
 );
 oAuth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 
-async function sendMail(email, subject, orderDetails, recipientType) {
+async function sendMail(email, subject, message) {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
+      user: process.env.GMAIL_USER, // Your Gmail address
+      pass: process.env.GMAIL_APP_PASSWORD // Your App Password
+    }
   });
 
-  let emailBody;
-  if (recipientType === 'customer') {
-    emailBody = `
-      <h1>Ordrebekreftelse</h1>
-      <p>Takk for din bestilling, ${orderDetails.customerName}!</p>
-      <p>Her er detaljene for din bestilling:</p>
-      <ul>
-        ${orderDetails.items.map(item => `<li>${item.name} - Antall: ${item.quantity}, Pris per enhet: ${item.price} NOK</li>`).join('')}
-      </ul>
-      <p>Totalpris: ${orderDetails.totalPrice} NOK</p>
-      <p>Vi vil sende deg en ny e-post når bestillingen din er sendt.</p>
-    `;
-  } else if (recipientType === 'shopOwner') {
-    emailBody = `
-      <h1>Ny Ordre Mottatt</h1>
-      <p>Du har mottatt en ny bestilling fra ${orderDetails.customerName}.</p>
-      <p>Her er detaljene for bestillingen:</p>
-      <ul>
-        ${orderDetails.items.map(item => `<li>${item.name} - Antall: ${item.quantity}, Pris per enhet: ${item.price} NOK</li>`).join('')}
-      </ul>
-      <p>Totalpris: ${orderDetails.totalPrice} NOK</p>
-    `;
-  }
-
   const mailOptions = {
-    from: `Høl i CVen <${process.env.GMAIL_USER}>`,
-    to: email,
-    subject: subject,
-    html: emailBody,
+    from: `Høl i CVen <${process.env.GMAIL_USER}>`, // Sender address
+    to: email, // List of recipients
+    subject: subject, // Subject line
+    text: message, // Plain text body
+    html: `<p>${message}</p>`, // HTML body
   };
 
   try {
     const result = await transporter.sendMail(mailOptions);
     console.log('Email sent:', result);
+    return result;
   } catch (error) {
     console.error('Failed to send email', error);
   }
 }
-
 
 
 app.post('/create-checkout-session', async (req, res) => {
@@ -136,41 +113,28 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+      event = stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error(`Webhook signature verification failed.`, err.message);
-    return response.status(400).send(`Webhook Error: ${err.message}`);
+      console.error(`Webhook signature verification failed.`, err.message);
+      return response.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
+      const session = event.data.object;
 
-    // Construct orderDetails object here
-    const orderDetails = {
-      id: session.id,
-      customerName: session.customer_details && session.customer_details.name ? session.customer_details.name : "Customer", // Example, adjust based on actual data
-      items: session.display_items.map(item => ({ // Adjust this based on your actual session object structure
-        name: item.custom.name,
-        quantity: item.quantity,
-        price: item.amount / 100 // Assuming amount is in cents
-      })),
-      totalPrice: session.amount_total / 100 // Assuming amount_total is in cents
-    };
+      // Example: Send email to customer
+      await sendMail(session.customer_details.email, "Ordre Bekreftelse", "Takk for din bestilling!");
 
-    // Example: Send email to customer
-    await sendMail(session.customer_details.email, "Ordre Bekreftelse", orderDetails, 'customer');
+      // Example: Send email to shop owner
+      await sendMail("designr.pros@gmail.com", "ny Ordre Mottatt", `Ordre mottat fra ${session.customer_details.email}.`);
 
-    // Example: Send email to shop owner
-    await sendMail("designr.pros@gmail.com", "Ny Ordre Mottatt", orderDetails, 'shopOwner');
-
-    console.log('Checkout session completed:', session.id);
+      console.log('Checkout session completed:', session.id);
   } else {
-    console.warn(`Unhandled event type ${event.type}`);
+      console.warn(`Unhandled event type ${event.type}`);
   }
 
   response.json({received: true});
 });
-
 
 const PORT = process.env.PORT || 4242;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
