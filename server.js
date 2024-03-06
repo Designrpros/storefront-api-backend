@@ -93,7 +93,6 @@ app.post('/create-checkout-session', async (req, res) => {
       shipping_address_collection: {
         allowed_countries: ['NO'],
       },
-      // Removed shipping_rates for simplicity, add it back if you have specific rates
       metadata: {
         customerEmail: shippingDetails.email,
       },
@@ -121,6 +120,7 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+    console.log(JSON.stringify(fullSession, null, 2));
 
     // Retrieve the session with expanded line items and their associated products
     const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
