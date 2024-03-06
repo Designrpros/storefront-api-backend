@@ -1,6 +1,6 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-exports.handler = async (req, res) => {
+export default async function handler(req, res) {
     console.log("Received request:", req.method, req.url);
 
     // Set CORS headers (replace `'*'` with specific allowed origins/methods in production)
