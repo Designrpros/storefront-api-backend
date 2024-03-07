@@ -154,7 +154,7 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
     const shippingDetails = session.shipping ? {
       name: session.shipping.name,
       address: session.shipping.address
-    } : null;
+    } : "no shipping details available";
 
     // Construct the order object to save to Firestore
     const order = {
