@@ -246,6 +246,21 @@ app.get('/api/dashboard/metrics', async (req, res) => {
   }
 });
 
+// In your Express server file
+
+app.get('/api/orders', async (req, res) => {
+  try {
+    const ordersSnapshot = await db.collection('orders').orderBy('createdAt', 'desc').get();
+    const orders = [];
+    ordersSnapshot.forEach(doc => orders.push({ id: doc.id, ...doc.data() }));
+    res.json({ orders });
+  } catch (error) {
+    console.error('Failed to fetch orders:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+
 
 
 const PORT = process.env.PORT || 4242;
