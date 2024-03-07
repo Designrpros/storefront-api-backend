@@ -142,48 +142,79 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
       expand: ['line_items.data.price.product']
     });
 
-    // Extract product names and quantities
-    const productDetails = fullSession.line_items.data.map(item => {
-      const productName = item.price.product.name; // Assuming product name is stored here
-      return `${productName} - Quantity: ${item.quantity}`;
-    }).join('<br>');
+    // Extract product names, quantities, and other relevant details
+    const productsPurchased = fullSession.line_items.data.map(item => ({
+      name: item.price.product.name,
+      quantity: item.quantity,
+      unitPrice: item.price.unit_amount,
+      totalPrice: item.amount_total
+    }));
 
     // Access shipping details directly from the session object
-    const shipping = session.shipping;
-    const shippingDetails = shipping ? `Address: ${shipping.address.line1}, ${shipping.address.city}, ${shipping.address.postal_code}, ${shipping.address.country}` : 'No shipping information provided, check stripes dashboard, under payments, and compare the order number';
+    const shippingDetails = session.shipping ? {
+      name: session.shipping.name,
+      address: session.shipping.address
+    } : null;
 
-    // Construct email messages
-    const messageForCustomer = `
-      <h1>Order Confirmation</h1>
-      <p>Thank you for your order!</p>
-      <p>Order Number: ${session.id}</p>
-      <p>Products:<br>${productDetails}</p>
-      <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
-      <p>Shipping Details:<br>${shippingDetails}</p>
-    `;
+    // Construct the order object to save to Firestore
+    const order = {
+      customerId: session.customer,
+      email: session.customer_details.email,
+      productsPurchased,
+      shippingDetails,
+      totalAmount: session.amount_total,
+      currency: session.currency,
+      status: 'completed',
+      createdAt: admin.firestore.FieldValue.serverTimestamp() // Use server timestamp
+    };
 
-    const messageForShopOwner = `
-      <h1>New Order Received</h1>
-      <p>A new order has been placed. Order Number: ${session.id}</p>
-      <p>Products:<br>${productDetails}</p>
-      <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
-      <p>Customer Email: ${session.customer_details.email}</p>
-      <p>Shipping Details:<br>${shippingDetails}</p>
-    `;
-
-    // Send email to customer
-    await sendMail(session.customer_details.email, "Order Confirmation", messageForCustomer);
-
-    // Send email to shop owner
-    await sendMail("designr.pros@gmail.com", "New Order Received", messageForShopOwner);
-
-    console.log('Checkout session completed:', session.id);
+    // Save the order to Firestore
+    try {
+      await db.collection('orders').doc(session.id).set(order);
+      console.log(`Order ${session.id} saved to Firestore.`);
+    } catch (error) {
+      console.error('Error saving order to Firestore:', error);
+    }
+      
+  
+      // Extract product names and quantities
+      const productDetails = fullSession.line_items.data.map(item => {
+        const productName = item.price.product.name; // Assuming product name is stored here
+        return `${productName} - Quantity: ${item.quantity}`;
+      }).join('<br>');
+  
+  
+      // Construct email messages
+      const messageForCustomer = `
+        <h1>Order Confirmation</h1>
+        <p>Thank you for your order!</p>
+        <p>Order Number: ${session.id}</p>
+        <p>Products:<br>${productDetails}</p>
+        <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+        <p>Shipping Details:<br>${shippingDetails}</p>
+      `;
+  
+      const messageForShopOwner = `
+        <h1>New Order Received</h1>
+        <p>A new order has been placed. Order Number: ${session.id}</p>
+        <p>Products:<br>${productDetails}</p>
+        <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+        <p>Customer Email: ${session.customer_details.email}</p>
+        <p>Shipping Details:<br>${shippingDetails}</p>
+      `;
+  
+      // Send email to customer
+      await sendMail(session.customer_details.email, "Order Confirmation", messageForCustomer);
+  
+      // Send email to shop owner
+      await sendMail("designr.pros@gmail.com", "New Order Received", messageForShopOwner);
+  
+      console.log('Checkout session completed:', session.id);
   } else {
     console.warn(`Unhandled event type ${event.type}`);
   }
 
   response.json({received: true});
-
 });
 
 
