@@ -39,6 +39,14 @@ app.use((req, res, next) => {
   }
 });
 
+const corsOptions = {
+  origin: 'https://h-l-i-c-ven.vercel.app', // Replace with your actual frontend domain
+  optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
+};
+
+app.use(cors(corsOptions));
+
+
 // OAuth2 client setup
 const oAuth2Client = new google.auth.OAuth2(
   process.env.CLIENT_ID,
