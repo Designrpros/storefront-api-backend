@@ -338,48 +338,69 @@ app.post('/api/send-confirmation', async (req, res) => {
 
 
 function constructEmailBody(order) {
-    const productsHtml = order.productsPurchased.map(product =>
-        `<li>${product.name} - Antall: ${product.quantity} - Pris: ${(product.unitPrice / 100).toFixed(2)} NOK</li>`
-    ).join('');
+  // Generate the HTML for each product
+  const productsHtml = order.productsPurchased.map(product =>
+    `<li>${product.name} - Antall: ${product.quantity} - Pris: ${(product.unitPrice / 100).toFixed(2)} NOK</li>`
+  ).join('');
 
-    let shippingDetailsHtml = "Fraktinformasjon ikke tilgjengelig";
-    if (order.shippingDetails && order.shippingDetails.address) {
-        shippingDetailsHtml = `
-            <p>Navn: ${order.shippingDetails.name}</p>
-            <p>Adresse: ${order.shippingDetails.address.line1}, ${order.shippingDetails.address.postal_code} ${order.shippingDetails.address.city}, ${order.shippingDetails.address.country}</p>
-        `;
-    }
-
-    return `
-        <h1>Din kaffe er på vei!</h1>
-        <p>Vi har sendt din bestilling, og den er nå på vei til deg.</p>
-        <h2>Detaljer om bestillingen:</h2>
-        <ul>
-            ${productsHtml}
-        </ul>
-        <p>Totalbeløp: ${(order.totalAmount / 100).toFixed(2)} NOK</p>
-        <h2>Fraktinformasjon:</h2>
-        ${shippingDetailsHtml}
-        <p>Takk for at du valgte oss. Vi håper du vil nyte kaffen!</p>
+  // Generate the HTML for shipping details
+  let shippingDetailsHtml = "Fraktinformasjon ikke tilgjengelig";
+  if (order.shippingDetails && order.shippingDetails.address) {
+    shippingDetailsHtml = `
+      <p><strong>Navn:</strong> ${order.shippingDetails.name}</p>
+      <p><strong>Adresse:</strong> ${order.shippingDetails.address.line1}, ${order.shippingDetails.address.postal_code} ${order.shippingDetails.address.city}, ${order.shippingDetails.address.country}</p>
     `;
+  }
+
+  // Construct the email body using the table layout
+  return `
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif;">
+      <tr>
+        <td align="center">
+          <table width="600" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6">
+            <tr>
+              <td align="center" bgcolor="#4CAF50" style="color: white; font-size: 24px;">Din kaffe er på vei!</td>
+            </tr>
+            <tr>
+              <td align="left" style="color: #333;">
+                <p>Vi har sendt din bestilling, og den er nå på vei til deg.</p>
+                <h2>Detaljer om bestillingen:</h2>
+                <ul style="list-style-type: none; padding: 0;">
+                  ${productsHtml}
+                </ul>
+                <p><strong>Totalbeløp:</strong> ${(order.totalAmount / 100).toFixed(2)} NOK</p>
+                <h2>Fraktinformasjon:</h2>
+                ${shippingDetailsHtml}
+                <p>Takk for at du valgte oss. Vi håper du vil nyte kaffen!</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  `;
 }
 
-function constructShopOwnerEmailBody(order) {
-    const productsHtml = order.productsPurchased.map(product =>
-        `<li>${product.name} - Antall: ${product.quantity} - Pris: ${(product.unitPrice / 100).toFixed(2)} NOK</li>`
-    ).join('');
 
-    return `
-        <h1>En forsendelsesbekreftelse er sendt til kunden</h1>
-        <p>Ordre ID: ${order.id} er nå bekreftet sendt til kunden.</p>
-        <h2>Detaljer om bestillingen:</h2>
-        <ul>
-            ${productsHtml}
-        </ul>
-        <p>Totalbeløp: ${(order.totalAmount / 100).toFixed(2)} NOK</p>
-        <p>Du kan kontakte kunden på: ${order.email}</p>
-        <p>Takk for at du bruker vår tjeneste.</p>
-    `;
+
+function constructShopOwnerEmailBody(order) {
+  const productsHtml = order.productsPurchased.map(product =>
+      `<li style="margin-bottom: 10px;">${product.name} - Antall: ${product.quantity} - Pris: ${product.unitPrice / 100} NOK</li>`
+  ).join('');
+
+  return `
+      <div style="font-family: Arial, sans-serif; color: #333;">
+          <h1 style="color: #3498db;">En forsendelsesbekreftelse er sendt til kunden</h1>
+          <p>Ordre ID: <strong>${order.id}</strong> er nå bekreftet sendt til kunden.</p>
+          <h2>Detaljer om bestillingen:</h2>
+          <ul style="list-style-type: none; padding: 0;">
+              ${productsHtml}
+          </ul>
+          <p><strong>Totalbeløp:</strong> ${(order.totalAmount / 100).toFixed(2)} NOK</p>
+          <p>Du kan kontakte kunden på: <a href="mailto:${order.email}" style="color: #3498db;">${order.email}</a></p>
+          <p>Takk for at du bruker vår tjeneste.</p>
+      </div>
+  `;
 }
 
 
