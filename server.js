@@ -184,6 +184,24 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
       console.error('Error saving order to Firestore:', error);
     }
       
+    // After saving the order to Firestore...
+    const customerRef = db.collection('customers').doc(session.customer_details.email);
+    const customerDoc = await customerRef.get();
+
+    if (customerDoc.exists) {
+      // Update existing customer record with new order info, if necessary
+      await customerRef.update({
+        // Update fields as necessary, e.g., add to an array of order IDs
+      });
+    } else {
+      // Create a new customer record
+      await customerRef.set({
+        email: session.customer_details.email,
+        // Any other customer info you want to store, e.g., name, total spent
+        orders: [session.id], // Example: storing order IDs in an array
+        totalSpent: session.amount_total, // You might want to aggregate this over time
+      });
+    }
   
       // Extract product names and quantities
       const productDetails = fullSession.line_items.data.map(item => {
