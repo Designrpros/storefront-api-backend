@@ -40,7 +40,7 @@ app.use((req, res, next) => {
 });
 
 const corsOptions = {
-  origin: 'https://h-l-i-c-ven.vercel.app', // Replace with your actual frontend domain
+  origin: 'https://h-l-i-c-ven.vercel.app',
   optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
 };
 
@@ -267,6 +267,27 @@ app.get('/api/orders', async (req, res) => {
     res.status(500).send('Internal Server Error');
   }
 });
+
+// In your Express server file
+
+app.get('/api/order/:sessionId', async (req, res) => {
+  const { sessionId } = req.params;
+  try {
+    const orderRef = db.collection('orders').doc(sessionId);
+    const doc = await orderRef.get();
+    if (!doc.exists) {
+      console.log('No such order!');
+      res.status(404).send('Not Found');
+    } else {
+      console.log('Order data:', doc.data());
+      res.json(doc.data());
+    }
+  } catch (error) {
+    console.error('Error getting order:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 
 
 
