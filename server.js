@@ -350,27 +350,32 @@ app.post('/api/send-confirmation', async (req, res) => {
 });
 
 function constructEmailBody(order) {
-    // Eksempel på HTML e-postinnhold for en forsendelsesbekreftelse på norsk
     const productsHtml = order.productsPurchased.map(product =>
-        `<li>${product.name} - Antall: ${product.quantity} - Pris per enhet: ${(product.unitPrice / 100).toFixed(2)} NOK</li>`
+        `<li>${product.name} - Antall: ${product.quantity} - Pris: ${(product.unitPrice / 100).toFixed(2)} NOK</li>`
     ).join('');
+
+    let shippingDetailsHtml = "Fraktinformasjon ikke tilgjengelig";
+    if (order.shippingDetails && order.shippingDetails.address) {
+        shippingDetailsHtml = `
+            <p>Navn: ${order.shippingDetails.name}</p>
+            <p>Adresse: ${order.shippingDetails.address.line1}, ${order.shippingDetails.address.postal_code} ${order.shippingDetails.address.city}, ${order.shippingDetails.address.country}</p>
+        `;
+    }
 
     return `
         <h1>Din kaffe er på vei!</h1>
-        <p>Vi er glade for å informere deg om at din bestilling nå er sendt med posten.</p>
+        <p>Vi har sendt din bestilling, og den er nå på vei til deg.</p>
         <h2>Detaljer om bestillingen:</h2>
         <ul>
             ${productsHtml}
         </ul>
         <p>Totalbeløp: ${(order.totalAmount / 100).toFixed(2)} NOK</p>
-        <p>Fraktdetaljer:</p>
-        <p>Navn: ${order.shippingDetails.name}</p>
-        <p>Adresse: ${order.shippingDetails.address.line1}, ${order.shippingDetails.address.postal_code} ${order.shippingDetails.address.city}, ${order.shippingDetails.address.country}</p>
-        <p>Din kaffe vil bli levert til ovennevnte adresse. Vi håper den kommer frem så snart som mulig og at du vil nyte den med stor glede.</p>
-        <p>Hvis du har noen spørsmål eller trenger hjelp, vennligst kontakt oss på support@holicven.com.</p>
-        <p>Takk for at du valgte oss for din kaffeopplevelse!</p>
+        <h2>Fraktinformasjon:</h2>
+        ${shippingDetailsHtml}
+        <p>Takk for at du valgte oss. Vi håper du vil nyte kaffen!</p>
     `;
 }
+
 
 
 
