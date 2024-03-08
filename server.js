@@ -56,36 +56,33 @@ const oAuth2Client = new google.auth.OAuth2(
 oAuth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 
 async function sendMail(email, subject, message) {
+  const accessToken = await oAuth2Client.getAccessToken(); // Ensure you get a fresh access token
+
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: process.env.GMAIL_USER, // Your Gmail address
-      pass: process.env.GMAIL_APP_PASSWORD // Your App Password
+      type: 'OAuth2',
+      user: process.env.GMAIL_USER,
+      clientId: process.env.CLIENT_ID,
+      clientSecret: process.env.CLIENT_SECRET,
+      refreshToken: process.env.REFRESH_TOKEN,
+      accessToken: accessToken.token, // Use the token from OAuth2Client
     }
   });
 
   const mailOptions = {
-    from: `Høl i CVen <${process.env.GMAIL_USER}>`, // Sender address
-    to: email, // List of recipients
-    subject: subject, // Subject line
-    text: message, // Plain text body
-    html: `<p>${message}</p>`, // HTML body
+    from: `Høl i CVen <${process.env.GMAIL_USER}>`,
+    to: email,
+    subject: subject,
+    html: `<p>${message}</p>`, // Using HTML for email body
   };
 
   try {
-    await sendMail(session.customer_details.email, "Order Confirmation", messageForCustomer);
-    console.log('Email sent to customer.');
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Email sent:', result);
   } catch (error) {
-    console.error('Failed to send email to customer', error);
+    console.error('Failed to send email:', error);
   }
-  
-  try {
-    await sendMail(process.env.SHOP_OWNER_EMAIL, "New Order Received", messageForShopOwner);
-    console.log('Email sent to shop owner.');
-  } catch (error) {
-    console.error('Failed to send email to shop owner', error);
-  }
-  
 }
 
 
@@ -151,6 +148,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (request, 
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+    // Retrieve the full session details as you currently do...
     const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
       expand: ['line_items.data.price.product']
     });
@@ -200,6 +198,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (request, 
       `<li>${product.name} - Quantity: ${product.quantity} - Price: ${(product.unitPrice / 100).toFixed(2)}</li>`
     ).join('');
 
+    // Construct the email messages here, after you have fullSession and session details
     const messageForCustomer = `
       <h1>Order Confirmation</h1>
       <p>Thank you for your order!</p>
@@ -218,8 +217,15 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (request, 
       <p>Shipping Details:<br>${shippingDetails?.name}, ${shippingDetails?.address?.line1}, ${shippingDetails?.address?.city}</p>
       `;
 
-    await sendMail(session.customer_details.email, "Order Confirmation", messageForCustomer);
-    await sendMail(process.env.SHOP_OWNER_EMAIL, "New Order Received", messageForShopOwner);
+    // Send email to the customer
+    await sendMail(session.customer_details.email, "Order Confirmation", messageForCustomer)
+      .then(() => console.log('Email sent to customer.'))
+      .catch(error => console.error('Failed to send email to customer', error));
+
+    // Send email to the shop owner
+    await sendMail(process.env.SHOP_OWNER_EMAIL, "New Order Received", messageForShopOwner)
+      .then(() => console.log('Email sent to shop owner.'))
+      .catch(error => console.error('Failed to send email to shop owner', error));
 
     console.log('Checkout session completed:', session.id);
   } else {
