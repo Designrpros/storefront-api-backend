@@ -61,14 +61,11 @@ async function sendMail(email, subject, message) {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      type: 'OAuth2',
       user: process.env.GMAIL_USER,
-      clientId: process.env.CLIENT_ID,
-      clientSecret: process.env.CLIENT_SECRET,
-      refreshToken: process.env.REFRESH_TOKEN,
-      accessToken: accessToken.token, // Use the token from OAuth2Client
-    }
+      pass: process.env.GMAIL_APP_PASSWORD, // Ensure this is updated
+    },
   });
+  
 
   const mailOptions = {
     from: `Høl i CVen <${process.env.GMAIL_USER}>`,
