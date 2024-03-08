@@ -130,7 +130,7 @@ app.post('/create-checkout-session', async (req, res) => {
   }
 });
 
-app.post('/webhook', express.raw({type: 'application/json'}), async (request, response) => {
+app.post('/webhook', express.raw({ type: 'application/json' }), async (request, response) => {
   const sig = request.headers['stripe-signature'];
 
   let event;
@@ -144,13 +144,10 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    
-    // Retrieve the session with expanded line items and their associated products
     const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
       expand: ['line_items.data.price.product']
     });
 
-    // Extract product names, quantities, and other relevant details
     const productsPurchased = fullSession.line_items.data.map(item => ({
       name: item.price.product.name,
       quantity: item.quantity,
@@ -158,92 +155,71 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
       totalPrice: item.amount_total
     }));
 
-    // Access shipping details directly from the session object
     const shippingDetails = session.shipping ? {
       name: session.shipping.name,
       address: session.shipping.address
     } : "no shipping details available";
 
-    // Construct the order object to save to Firestore
+    let customerRef = db.collection('customers').doc(session.customer_details.email);
+    const customerDoc = await customerRef.get();
+
     const order = {
-      customerId: session.customer,
+      customerId: session.customer_details.email,
       email: session.customer_details.email,
       productsPurchased,
       shippingDetails,
       totalAmount: session.amount_total,
       currency: session.currency,
       status: 'completed',
-      createdAt: admin.firestore.FieldValue.serverTimestamp() // Use server timestamp
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
     };
 
-    // Save the order to Firestore
-    try {
-      await db.collection('orders').doc(session.id).set(order);
-      console.log(`Order ${session.id} saved to Firestore.`);
-    } catch (error) {
-      console.error('Error saving order to Firestore:', error);
-    }
-      
-    // After saving the order to Firestore...
-    const customerRef = db.collection('customers').doc(session.customer_details.email);
-    const customerDoc = await customerRef.get();
+    await db.collection('orders').doc(session.id).set(order);
 
-    if (customerDoc.exists) {
-      // Update existing customer record with new order info
-      await customerRef.update({
-        // Assuming you want to add the new order ID to an array of orders
-        orders: admin.firestore.FieldValue.arrayUnion(session.id),
-        // Update totalSpent by adding the new order's amount
-        totalSpent: admin.firestore.FieldValue.increment(session.amount_total),
-      });
-    } else {
-      // Create a new customer record
+    if (!customerDoc.exists) {
       await customerRef.set({
         email: session.customer_details.email,
-        orders: [session.id], // Storing order IDs in an array
-        totalSpent: session.amount_total, // Initial total spent is the amount of the first order
+        orders: [session.id],
+        totalSpent: session.amount_total,
+      });
+    } else {
+      await customerRef.update({
+        orders: admin.firestore.FieldValue.arrayUnion(session.id),
+        totalSpent: admin.firestore.FieldValue.increment(session.amount_total),
       });
     }
 
-  
-      // Extract product names and quantities
-      const productDetails = fullSession.line_items.data.map(item => {
-        const productName = item.price.product.name; // Assuming product name is stored here
-        return `${productName} - Quantity: ${item.quantity}`;
-      }).join('<br>');
-  
-  
-      // Construct email messages
-      const messageForCustomer = `
-        <h1>Order Confirmation</h1>
-        <p>Thank you for your order!</p>
-        <p>Order Number: ${session.id}</p>
-        <p>Products:<br>${productDetails}</p>
-        <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
-        <p>Shipping Details:<br>${shippingDetails}</p>
-      `;
-  
-      const messageForShopOwner = `
-        <h1>New Order Received</h1>
-        <p>A new order has been placed. Order Number: ${session.id}</p>
-        <p>Products:<br>${productDetails}</p>
-        <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
-        <p>Customer Email: ${session.customer_details.email}</p>
-        <p>Shipping Details:<br>${shippingDetails}</p>
-      `;
-  
-      // Send email to customer
-      await sendMail(session.customer_details.email, "Order Confirmation", messageForCustomer);
-  
-      // Send email to shop owner
-      await sendMail("designr.pros@gmail.com", "New Order Received", messageForShopOwner);
-  
-      console.log('Checkout session completed:', session.id);
+    const productDetailsHtml = productsPurchased.map(product => 
+      `<li>${product.name} - Quantity: ${product.quantity} - Price: ${(product.unitPrice / 100).toFixed(2)}</li>`
+    ).join('');
+
+    const messageForCustomer = `
+      <h1>Order Confirmation</h1>
+      <p>Thank you for your order!</p>
+      <p>Order Number: ${session.id}</p>
+      <p>Products:<br>${productDetailsHtml}</p>
+      <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+      <p>Shipping Details:<br>${shippingDetails.name}, ${shippingDetails.address.line1}, ${shippingDetails.address.city}</p>
+    `;
+
+    const messageForShopOwner = `
+      <h1>New Order Received</h1>
+      <p>A new order has been placed. Order Number: ${session.id}</p>
+      <p>Products:<br>${productDetailsHtml}</p>
+      <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+      <p>Customer Email: ${session.customer_details.email}</p>
+      <p>Shipping Details:<br>${shippingDetails.name}, ${shippingDetails.address.line1}, ${shippingDetails.address.city}</p>
+    `;
+
+    await sendMail(session.customer_details.email, "Order Confirmation", messageForCustomer);
+    await sendMail(process.env.SHOP_OWNER_EMAIL, "New Order Received", messageForShopOwner);
+
+    console.log('Checkout session completed:', session.id);
   } else {
     console.warn(`Unhandled event type ${event.type}`);
   }
 
-  response.json({received: true});
+  response.json({ received: true });
 });
 
 
