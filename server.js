@@ -206,15 +206,15 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (request, 
                 </td>
               </tr>
               <tr bgcolor="#9dd2ac">
-                <td align="left" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">Order Confirmation</td>
+                <td align="left" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">Ordrebekreftelse</td>
               </tr>
               <tr>
                 <td align="left" style="color: #333;">
-                  <p>Thank you for your order!</p>
-                  <p>Order Number: ${session.id}</p>
-                  <p>Products:<br>${productDetailsHtml}</p>
-                  <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
-                  <p>Shipping Details:<br>${shippingDetails?.name}, ${shippingDetails?.address?.line1}, ${shippingDetails?.address?.city}</p>
+                  <p>Takk for din bestilling!</p>
+                  <p>Ordrenummer: ${session.id}</p>
+                  <p>Produkter:<br>${productDetailsHtml}</p>
+                  <p>Totalbeløp: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+                  <p>Leveringsdetaljer:<br>${shippingDetails?.name}, ${shippingDetails?.address?.line1}, ${shippingDetails?.address?.city}</p>
                 </td>
               </tr>
             </table>
@@ -222,6 +222,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (request, 
         </tr>
       </table>
       `;
+
 
 
       const messageForShopOwner = `
@@ -235,22 +236,23 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (request, 
                   </td>
                 </tr>
                 <tr bgcolor="#9dd2ac">
-                  <td align="left" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">New Order Received</td>
+                  <td align="left" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">Ny ordre mottatt</td>
                 </tr>
                 <tr>
                   <td align="left" style="color: #333;">
-                    <p>A new order has been placed. Order Number: ${session.id}</p>
-                    <p>Products:<br>${productDetailsHtml}</p>
-                    <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
-                    <p>Customer Email: ${session.customer_details.email}</p>
-                    <p>Shipping Details:<br>${shippingDetails?.name}, ${shippingDetails?.address?.line1}, ${shippingDetails?.address?.city}</p>
+                    <p>En ny ordre har blitt plassert. Ordrenummer: ${session.id}</p>
+                    <p>Produkter:<br>${productDetailsHtml}</p>
+                    <p>Totalbeløp: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+                    <p>Kundens e-post: ${session.customer_details.email}</p>
+                    <p>Leveringsdetaljer:<br>${shippingDetails?.name}, ${shippingDetails?.address?.line1}, ${shippingDetails?.address?.city}</p>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
         </table>
-      `;
+        `;
+
       
 
     // Send email to the customer
