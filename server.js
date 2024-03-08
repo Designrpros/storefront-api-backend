@@ -363,7 +363,8 @@ function constructEmailBody(order) {
           <table width="600" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6">
             <tr>
               <td align="center" style="padding-bottom: 0;">
-                <img src="${imageUrl}" alt="Logo" style="max-width: 80%; height: auto;">
+                <!-- Adjust width and height as needed -->
+                <img src="${imageUrl}" alt="Logo" style="width: 120px; height: auto;">
               </td>
             </tr>
             <tr>
@@ -388,7 +389,6 @@ function constructEmailBody(order) {
     </table>
   `;
 }
-
 
 
 
