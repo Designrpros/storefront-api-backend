@@ -325,7 +325,7 @@ app.get('/api/order/:sessionId', async (req, res) => {
 
 
 app.post('/api/send-confirmation', async (req, res) => {
-    const { orderId } = req.body; // Assuming the request body contains an orderId
+    const { orderId } = req.body;
 
     try {
         const orderDoc = await db.collection('orders').doc(orderId).get();
@@ -334,15 +334,21 @@ app.post('/api/send-confirmation', async (req, res) => {
         }
 
         const order = orderDoc.data();
-        const emailBody = constructEmailBody(order);
-        const emailResult = await sendMail(order.email, 'Din kaffe er på vei!', emailBody);
+        // Email to the customer
+        const customerEmailBody = constructEmailBody(order);
+        await sendMail(order.email, 'Din kaffe er på vei!', customerEmailBody);
 
-        res.send({ message: 'Shipment confirmation email sent successfully', emailResult });
+        // Email to the shop owner
+        const shopOwnerEmailBody = constructShopOwnerEmailBody(order);
+        await sendMail("designr.pros@gmail.com", "Forsendelsesbekreftelse Sendt", shopOwnerEmailBody);
+
+        res.send({ message: 'Shipment confirmation email sent successfully' });
     } catch (error) {
         console.error('Failed to send confirmation email:', error);
         res.status(500).send('Failed to send confirmation email');
     }
 });
+
 
 
 function constructEmailBody(order) {
@@ -371,6 +377,25 @@ function constructEmailBody(order) {
         <p>Takk for at du valgte oss. Vi håper du vil nyte kaffen!</p>
     `;
 }
+
+function constructShopOwnerEmailBody(order) {
+    const productsHtml = order.productsPurchased.map(product =>
+        `<li>${product.name} - Antall: ${product.quantity} - Pris: ${(product.unitPrice / 100).toFixed(2)} NOK</li>`
+    ).join('');
+
+    return `
+        <h1>En forsendelsesbekreftelse er sendt til kunden</h1>
+        <p>Ordre ID: ${order.id} er nå bekreftet sendt til kunden.</p>
+        <h2>Detaljer om bestillingen:</h2>
+        <ul>
+            ${productsHtml}
+        </ul>
+        <p>Totalbeløp: ${(order.totalAmount / 100).toFixed(2)} NOK</p>
+        <p>Du kan kontakte kunden på: ${order.email}</p>
+        <p>Takk for at du bruker vår tjeneste.</p>
+    `;
+}
+
 
 
 
