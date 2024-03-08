@@ -324,6 +324,57 @@ app.get('/api/order/:sessionId', async (req, res) => {
 });
 
 
+app.post('/api/send-confirmation', async (req, res) => {
+    const { orderId } = req.body;
+
+    try {
+        // Retrieve the order from Firestore using the orderId
+        const orderDoc = await db.collection('orders').doc(orderId).get();
+        if (!orderDoc.exists) {
+            return res.status(404).send('Order not found');
+        }
+        const order = orderDoc.data();
+
+        // Construct the email message
+        const emailSubject = `Order Confirmation - Order #${orderId}`;
+        const emailBody = constructEmailBody(order); // We'll implement this function next
+
+        // Send the email
+        await sendMail(order.email, emailSubject, emailBody);
+
+        res.send('Confirmation email sent successfully');
+    } catch (error) {
+        console.error('Failed to send confirmation email:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+function constructEmailBody(order) {
+    // Eksempel på HTML e-postinnhold for en forsendelsesbekreftelse på norsk
+    const productsHtml = order.productsPurchased.map(product =>
+        `<li>${product.name} - Antall: ${product.quantity} - Pris per enhet: ${(product.unitPrice / 100).toFixed(2)} NOK</li>`
+    ).join('');
+
+    return `
+        <h1>Din kaffe er på vei!</h1>
+        <p>Vi er glade for å informere deg om at din bestilling nå er sendt med posten.</p>
+        <h2>Detaljer om bestillingen:</h2>
+        <ul>
+            ${productsHtml}
+        </ul>
+        <p>Totalbeløp: ${(order.totalAmount / 100).toFixed(2)} NOK</p>
+        <p>Fraktdetaljer:</p>
+        <p>Navn: ${order.shippingDetails.name}</p>
+        <p>Adresse: ${order.shippingDetails.address.line1}, ${order.shippingDetails.address.postal_code} ${order.shippingDetails.address.city}, ${order.shippingDetails.address.country}</p>
+        <p>Din kaffe vil bli levert til ovennevnte adresse. Vi håper den kommer frem så snart som mulig og at du vil nyte den med stor glede.</p>
+        <p>Hvis du har noen spørsmål eller trenger hjelp, vennligst kontakt oss på support@holicven.com.</p>
+        <p>Takk for at du valgte oss for din kaffeopplevelse!</p>
+    `;
+}
+
+
+
+
 
 const PORT = process.env.PORT || 4242;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
