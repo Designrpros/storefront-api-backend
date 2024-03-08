@@ -352,14 +352,22 @@ function constructEmailBody(order) {
     `;
   }
 
+  // Image URL
+  const imageUrl = "https://h-l-i-c-ven.vercel.app/static/media/H%C3%98L_I_CVEN_GR%C3%98NN.85f3db364c841eeec633.png";
+
   // Construct the email body using the table layout
   return `
     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif;">
       <tr>
         <td align="center">
-          <table width="600" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6">
+          <table width="600" border="0" cellspacing="0" cellpadding="20" bgcolor="#9dd2ac">
             <tr>
-              <td align="center" bgcolor="#4CAF50" style="color: white; font-size: 24px;">Din kaffe er på vei!</td>
+              <td align="center" style="padding-bottom: 0;">
+                <img src="${imageUrl}" alt="Logo" style="max-width: 100%; height: auto;">
+              </td>
+            </tr>
+            <tr>
+              <td align="center" bgcolor="#4CAF50" style="color: white; font-size: 24px; padding-top: 0;">Din kaffe er på vei!</td>
             </tr>
             <tr>
               <td align="left" style="color: #333;">
@@ -380,6 +388,7 @@ function constructEmailBody(order) {
     </table>
   `;
 }
+
 
 
 
