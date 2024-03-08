@@ -325,29 +325,25 @@ app.get('/api/order/:sessionId', async (req, res) => {
 
 
 app.post('/api/send-confirmation', async (req, res) => {
-    const { orderId } = req.body;
+    const { orderId } = req.body; // Assuming the request body contains an orderId
 
     try {
-        // Retrieve the order from Firestore using the orderId
         const orderDoc = await db.collection('orders').doc(orderId).get();
         if (!orderDoc.exists) {
             return res.status(404).send('Order not found');
         }
+
         const order = orderDoc.data();
+        const emailBody = constructEmailBody(order);
+        const emailResult = await sendMail(order.email, 'Din kaffe er på vei!', emailBody);
 
-        // Construct the email message
-        const emailSubject = `Order Confirmation - Order #${orderId}`;
-        const emailBody = constructEmailBody(order); // We'll implement this function next
-
-        // Send the email
-        await sendMail(order.email, emailSubject, emailBody);
-
-        res.send('Confirmation email sent successfully');
+        res.send({ message: 'Shipment confirmation email sent successfully', emailResult });
     } catch (error) {
         console.error('Failed to send confirmation email:', error);
-        res.status(500).send('Internal Server Error');
+        res.status(500).send('Failed to send confirmation email');
     }
 });
+
 
 function constructEmailBody(order) {
     const productsHtml = order.productsPurchased.map(product =>
