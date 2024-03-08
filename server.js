@@ -73,12 +73,19 @@ async function sendMail(email, subject, message) {
   };
 
   try {
-    const result = await transporter.sendMail(mailOptions);
-    console.log('Email sent:', result);
-    return result;
+    await sendMail(session.customer_details.email, "Order Confirmation", messageForCustomer);
+    console.log('Email sent to customer.');
   } catch (error) {
-    console.error('Failed to send email', error);
+    console.error('Failed to send email to customer', error);
   }
+  
+  try {
+    await sendMail(process.env.SHOP_OWNER_EMAIL, "New Order Received", messageForShopOwner);
+    console.log('Email sent to shop owner.');
+  } catch (error) {
+    console.error('Failed to send email to shop owner', error);
+  }
+  
 }
 
 
