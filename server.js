@@ -189,19 +189,22 @@ app.post('/webhook', express.raw({type: 'application/json'}), async (request, re
     const customerDoc = await customerRef.get();
 
     if (customerDoc.exists) {
-      // Update existing customer record with new order info, if necessary
+      // Update existing customer record with new order info
       await customerRef.update({
-        // Update fields as necessary, e.g., add to an array of order IDs
+        // Assuming you want to add the new order ID to an array of orders
+        orders: admin.firestore.FieldValue.arrayUnion(session.id),
+        // Update totalSpent by adding the new order's amount
+        totalSpent: admin.firestore.FieldValue.increment(session.amount_total),
       });
     } else {
       // Create a new customer record
       await customerRef.set({
         email: session.customer_details.email,
-        // Any other customer info you want to store, e.g., name, total spent
-        orders: [session.id], // Example: storing order IDs in an array
-        totalSpent: session.amount_total, // You might want to aggregate this over time
+        orders: [session.id], // Storing order IDs in an array
+        totalSpent: session.amount_total, // Initial total spent is the amount of the first order
       });
     }
+
   
       // Extract product names and quantities
       const productDetails = fullSession.line_items.data.map(item => {
