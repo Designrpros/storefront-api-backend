@@ -268,25 +268,17 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
-// In your Express server file
-
 app.get('/api/order/:sessionId', async (req, res) => {
-  const { sessionId } = req.params;
-  try {
-    const orderRef = db.collection('orders').doc(sessionId);
-    const doc = await orderRef.get();
-    if (!doc.exists) {
-      console.log('No such order!');
-      res.status(404).send('Not Found');
-    } else {
-      console.log('Order data:', doc.data());
-      res.json(doc.data());
-    }
-  } catch (error) {
-    console.error('Error getting order:', error);
-    res.status(500).send('Internal Server Error');
+  const sessionId = req.params.sessionId;
+  // Fetch order from your database or Stripe
+  const order = await fetchOrderDetails(sessionId);
+  if (order) {
+    res.json(order);
+  } else {
+    res.status(404).send('Order not found');
   }
 });
+
 
 
 
