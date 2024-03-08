@@ -254,8 +254,6 @@ app.get('/api/dashboard/metrics', async (req, res) => {
   }
 });
 
-// In your Express server file
-
 app.get('/api/orders', async (req, res) => {
   try {
     const ordersSnapshot = await db.collection('orders').orderBy('createdAt', 'desc').get();
@@ -269,7 +267,40 @@ app.get('/api/orders', async (req, res) => {
 });
 
 
+app.get('/api/order/:sessionId', async (req, res) => {
+  const { sessionId } = req.params;
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['line_items.data.price.product'],
+    });
 
+    // Assuming you want to return similar data structure as you have in your webhook
+    const productsPurchased = session.line_items.data.map(item => ({
+      name: item.price.product.name,
+      quantity: item.quantity,
+      unitPrice: item.price.unit_amount,
+      totalPrice: item.amount_total
+    }));
+
+    const shippingDetails = session.shipping ? {
+      name: session.shipping.name,
+      address: session.shipping.address
+    } : null;
+
+    const orderDetails = {
+      id: session.id,
+      totalAmount: session.amount_total,
+      currency: session.currency,
+      productsPurchased,
+      shippingDetails,
+    };
+
+    res.json(orderDetails);
+  } catch (error) {
+    console.error('Failed to fetch order details:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
 
 
 
