@@ -195,24 +195,63 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (request, 
       `<li>${product.name} - Quantity: ${product.quantity} - Price: ${(product.unitPrice / 100).toFixed(2)}</li>`
     ).join('');
 
-    // Construct the email messages here, after you have fullSession and session details
     const messageForCustomer = `
-      <h1>Order Confirmation</h1>
-      <p>Thank you for your order!</p>
-      <p>Order Number: ${session.id}</p>
-      <p>Products:<br>${productDetailsHtml}</p>
-      <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
-      <p>Shipping Details:<br>${shippingDetails?.name}, ${shippingDetails?.address?.line1}, ${shippingDetails?.address?.city}</p>
+      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif;">
+        <tr>
+          <td align="center">
+            <table width="100%" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6" style="max-width: 600px;">
+              <tr bgcolor="#9dd2ac">
+                <td align="left" style="padding-bottom: 0; padding-top: 0;">
+                  <img src="https://h-l-i-c-ven.vercel.app/static/media/H%C3%98L_I_CVEN_GR%C3%98NN.85f3db364c841eeec633.png" alt="Logo" style="width: 120px; height: auto; display: block; margin: auto;">
+                </td>
+              </tr>
+              <tr bgcolor="#9dd2ac">
+                <td align="left" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">Order Confirmation</td>
+              </tr>
+              <tr>
+                <td align="left" style="color: #333;">
+                  <p>Thank you for your order!</p>
+                  <p>Order Number: ${session.id}</p>
+                  <p>Products:<br>${productDetailsHtml}</p>
+                  <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+                  <p>Shipping Details:<br>${shippingDetails?.name}, ${shippingDetails?.address?.line1}, ${shippingDetails?.address?.city}</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
       `;
 
-    const messageForShopOwner = `
-      <h1>New Order Received</h1>
-      <p>A new order has been placed. Order Number: ${session.id}</p>
-      <p>Products:<br>${productDetailsHtml}</p>
-      <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
-      <p>Customer Email: ${session.customer_details.email}</p>
-      <p>Shipping Details:<br>${shippingDetails?.name}, ${shippingDetails?.address?.line1}, ${shippingDetails?.address?.city}</p>
+
+      const messageForShopOwner = `
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif;">
+          <tr>
+            <td align="center">
+              <table width="100%" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6" style="max-width: 600px;">
+                <tr bgcolor="#9dd2ac">
+                  <td align="left" style="padding-bottom: 0; padding-top: 0;">
+                    <img src="https://h-l-i-c-ven.vercel.app/static/media/H%C3%98L_I_CVEN_GR%C3%98NN.85f3db364c841eeec633.png" alt="Logo" style="width: 120px; height: auto; display: block; margin: auto;">
+                  </td>
+                </tr>
+                <tr bgcolor="#9dd2ac">
+                  <td align="left" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">New Order Received</td>
+                </tr>
+                <tr>
+                  <td align="left" style="color: #333;">
+                    <p>A new order has been placed. Order Number: ${session.id}</p>
+                    <p>Products:<br>${productDetailsHtml}</p>
+                    <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+                    <p>Customer Email: ${session.customer_details.email}</p>
+                    <p>Shipping Details:<br>${shippingDetails?.name}, ${shippingDetails?.address?.line1}, ${shippingDetails?.address?.city}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
       `;
+      
 
     // Send email to the customer
     await sendMail(session.customer_details.email, "Order Confirmation", messageForCustomer)
@@ -389,23 +428,28 @@ function constructEmailBody(order) {
   `;
 }
 
-
-
-
 function constructShopOwnerEmailBody(order) {
   // Generate the HTML for each product
   const productsHtml = order.productsPurchased.map(product =>
     `<li>${product.name} - Antall: ${product.quantity} - Pris: ${(product.unitPrice / 100).toFixed(2)} NOK</li>`
   ).join('');
 
+  // Image URL
+  const imageUrl = "https://h-l-i-c-ven.vercel.app/static/media/H%C3%98L_I_CVEN_GR%C3%98NN.85f3db364c841eeec633.png";
+
   // Construct the email body using the table layout
   return `
     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif;">
       <tr>
         <td align="center">
-          <table width="600" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6">
-            <tr>
-              <td align="center" bgcolor="#3498db" style="color: white; font-size: 24px;">Ny ordre mottatt!</td>
+          <table width="100%" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6" style="max-width: 600px;">
+            <tr bgcolor="#9dd2ac">
+              <td align="left" style="padding-bottom: 0; padding-top: 0;">
+                <img src="${imageUrl}" alt="Logo" style="width: 120px; height: auto; display: block; margin: auto;">
+              </td>
+            </tr>
+            <tr bgcolor="#9dd2ac">
+              <td align="left" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">Ny ordre mottatt!</td>
             </tr>
             <tr>
               <td align="left" style="color: #333;">
@@ -425,6 +469,7 @@ function constructShopOwnerEmailBody(order) {
     </table>
   `;
 }
+
 
 
 
