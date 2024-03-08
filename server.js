@@ -360,7 +360,7 @@ function constructEmailBody(order) {
     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif;">
       <tr>
         <td align="center">
-          <table width="600" border="0" cellspacing="0" cellpadding="20" bgcolor="#9dd2ac">
+          <table width="600" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6">
             <tr>
               <td align="center" style="padding-bottom: 0;">
                 <img src="${imageUrl}" alt="Logo" style="max-width: 100%; height: auto;">
