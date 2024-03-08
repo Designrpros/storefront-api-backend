@@ -268,17 +268,6 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
-app.get('/api/order/:sessionId', async (req, res) => {
-  const sessionId = req.params.sessionId;
-  // Fetch order from your database or Stripe
-  const order = await fetchOrderDetails(sessionId);
-  if (order) {
-    res.json(order);
-  } else {
-    res.status(404).send('Order not found');
-  }
-});
-
 
 
 
