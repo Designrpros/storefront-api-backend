@@ -360,15 +360,14 @@ function constructEmailBody(order) {
     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif;">
       <tr>
         <td align="center">
-          <table width="600" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6">
-            <tr>
-              <td align="center" style="padding-bottom: 0;">
-                <!-- Adjust width and height as needed -->
-                <img src="${imageUrl}" alt="Logo" style="width: 120px; height: auto;">
+          <table width="100%" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6" style="max-width: 600px;">
+            <tr bgcolor="#9dd2ac">
+              <td align="left" style="padding-bottom: 0; padding-top: 0;">
+                <img src="${imageUrl}" alt="Logo" style="width: 120px; height: auto; display: block; margin: auto;">
               </td>
             </tr>
-            <tr>
-              <td align="center" bgcolor="#4CAF50" style="color: white; font-size: 24px; padding-top: 0;">Din kaffe er på vei!</td>
+            <tr bgcolor="#9dd2ac">
+              <td align="left" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">Din kaffe er på vei!</td>
             </tr>
             <tr>
               <td align="left" style="color: #333;">
@@ -389,6 +388,7 @@ function constructEmailBody(order) {
     </table>
   `;
 }
+
 
 
 
