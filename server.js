@@ -199,8 +199,8 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (request, 
       <p>Order Number: ${session.id}</p>
       <p>Products:<br>${productDetailsHtml}</p>
       <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
-      <p>Shipping Details:<br>${shippingDetails.name}, ${shippingDetails.address.line1}, ${shippingDetails.address.city}</p>
-    `;
+      <p>Shipping Details:<br>${shippingDetails?.name}, ${shippingDetails?.address?.line1}, ${shippingDetails?.address?.city}</p>
+      `;
 
     const messageForShopOwner = `
       <h1>New Order Received</h1>
@@ -208,8 +208,8 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (request, 
       <p>Products:<br>${productDetailsHtml}</p>
       <p>Total Amount: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
       <p>Customer Email: ${session.customer_details.email}</p>
-      <p>Shipping Details:<br>${shippingDetails.name}, ${shippingDetails.address.line1}, ${shippingDetails.address.city}</p>
-    `;
+      <p>Shipping Details:<br>${shippingDetails?.name}, ${shippingDetails?.address?.line1}, ${shippingDetails?.address?.city}</p>
+      `;
 
     await sendMail(session.customer_details.email, "Order Confirmation", messageForCustomer);
     await sendMail(process.env.SHOP_OWNER_EMAIL, "New Order Received", messageForShopOwner);
