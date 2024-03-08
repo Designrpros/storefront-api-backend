@@ -384,24 +384,39 @@ function constructEmailBody(order) {
 
 
 function constructShopOwnerEmailBody(order) {
+  // Generate the HTML for each product
   const productsHtml = order.productsPurchased.map(product =>
-      `<li style="margin-bottom: 10px;">${product.name} - Antall: ${product.quantity} - Pris: ${product.unitPrice / 100} NOK</li>`
+    `<li>${product.name} - Antall: ${product.quantity} - Pris: ${(product.unitPrice / 100).toFixed(2)} NOK</li>`
   ).join('');
 
+  // Construct the email body using the table layout
   return `
-      <div style="font-family: Arial, sans-serif; color: #333;">
-          <h1 style="color: #3498db;">En forsendelsesbekreftelse er sendt til kunden</h1>
-          <p>Ordre ID: <strong>${order.id}</strong> er nå bekreftet sendt til kunden.</p>
-          <h2>Detaljer om bestillingen:</h2>
-          <ul style="list-style-type: none; padding: 0;">
-              ${productsHtml}
-          </ul>
-          <p><strong>Totalbeløp:</strong> ${(order.totalAmount / 100).toFixed(2)} NOK</p>
-          <p>Du kan kontakte kunden på: <a href="mailto:${order.email}" style="color: #3498db;">${order.email}</a></p>
-          <p>Takk for at du bruker vår tjeneste.</p>
-      </div>
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif;">
+      <tr>
+        <td align="center">
+          <table width="600" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6">
+            <tr>
+              <td align="center" bgcolor="#3498db" style="color: white; font-size: 24px;">Ny ordre mottatt!</td>
+            </tr>
+            <tr>
+              <td align="left" style="color: #333;">
+                <p>En ny ordre har blitt plassert. Ordre Nummer: <strong>${order.id}</strong></p>
+                <h2>Detaljer om bestillingen:</h2>
+                <ul style="list-style-type: none; padding: 0;">
+                  ${productsHtml}
+                </ul>
+                <p><strong>Totalbeløp:</strong> ${(order.totalAmount / 100).toFixed(2)} NOK</p>
+                <p><strong>Kundens e-post:</strong> <a href="mailto:${order.email}" style="color: #3498db;">${order.email}</a></p>
+                <p>Takk for at du bruker vår tjeneste.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
   `;
 }
+
 
 
 
