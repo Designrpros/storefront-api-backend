@@ -256,12 +256,12 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (request, 
       
 
     // Send email to the customer
-    await sendMail(session.customer_details.email, "Order Confirmation", messageForCustomer)
+    await sendMail(session.customer_details.email, "Ordre Bekreftelese", messageForCustomer)
       .then(() => console.log('Email sent to customer.'))
       .catch(error => console.error('Failed to send email to customer', error));
 
     // Send email to the shop owner
-    await sendMail(process.env.SHOP_OWNER_EMAIL, "New Order Received", messageForShopOwner)
+    await sendMail(process.env.SHOP_OWNER_EMAIL, "Ny Ordre Mottatt", messageForShopOwner)
       .then(() => console.log('Email sent to shop owner.'))
       .catch(error => console.error('Failed to send email to shop owner', error));
 
