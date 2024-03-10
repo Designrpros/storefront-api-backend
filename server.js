@@ -196,7 +196,8 @@ function constructEmailMessage(session, productDetailsHtml, shippingDetailsHtml,
   const heading = isCustomer ? "Ordrebekreftelse" : "Ny ordre mottatt";
   const imageUrl = "https://h-l-i-c-ven.vercel.app/static/media/H%C3%98L_I_CVEN_GR%C3%98NN.85f3db364c841eeec633.png";
   const emailGreeting = isCustomer ? "<p>Takk for din bestilling!</p>" : "<p>En ny ordre har blitt plassert.</p>";
-  const orderNumberDisplay = `<p>Ordrenummer: ${session.id}</p>`;
+  // Apply word-break style to the order number to ensure it wraps on small screens
+  const orderNumberDisplay = `<p style="word-break: break-all;">Ordrenummer: ${session.id}</p>`;
 
   return `
     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif;">
@@ -226,6 +227,7 @@ function constructEmailMessage(session, productDetailsHtml, shippingDetailsHtml,
     </table>
   `;
 }
+
 
 
 // Assuming you've already set up Express (`app`) and Firestore (`db`)
