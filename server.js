@@ -386,19 +386,18 @@ function constructShopOwnerEmailBody(order) {
       <tr>
         <td align="center" bgcolor="#9dd2ac" style="padding: 20px;">
           <img src="${imageUrl}" alt="Logo" style="width: 100px; height: auto; margin-bottom: 20px;">
-          <h1 style="color: white; font-size: 24px; margin: 0;">Ny ordre mottatt!</h1>
+          <h1 style="color: white; font-size: 24px; margin: 0;">Ny ordre Sendt!</h1>
         </td>
       </tr>
       <tr>
         <td style="padding: 20px; background-color: #f6f6f6;">
-          <p>En ny ordre har blitt plassert. Ordre Nummer: <strong>${order.id}</strong></p>
+          <p>En ordre har blitt Sendt.
           <h2>Detaljer om bestillingen:</h2>
           <ul style="list-style-type: none; padding: 0;">
             ${productsHtml}
           </ul>
           <p><strong>Totalbeløp:</strong> ${(order.totalAmount / 100).toFixed(2)} NOK</p>
           <p><strong>Kundens e-post:</strong> <a href="mailto:${order.email}" style="color: #3498db;">${order.email}</a></p>
-          <p>Takk for at du bruker vår tjeneste.</p>
         </td>
       </tr>
     </table>
