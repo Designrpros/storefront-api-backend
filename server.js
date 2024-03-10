@@ -131,6 +131,7 @@ app.post('/create-checkout-session', async (req, res) => {
   }
 });
 
+
 app.post('/webhook', express.raw({ type: 'application/json' }), async (request, response) => {
   const sig = request.headers['stripe-signature'];
 
@@ -145,7 +146,6 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (request, 
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    // Retrieve the full session details as you currently do...
     const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
       expand: ['line_items.data.price.product']
     });
@@ -160,108 +160,26 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (request, 
     const shippingDetails = session.shipping ? {
       name: session.shipping.name,
       address: session.shipping.address
-    } : "no shipping details available";
+    } : "No shipping details available";
 
-    let customerRef = db.collection('customers').doc(session.customer_details.email);
-    const customerDoc = await customerRef.get();
-
-    const order = {
-      customerId: session.customer_details.email,
-      email: session.customer_details.email,
-      productsPurchased,
-      shippingDetails,
-      totalAmount: session.amount_total,
-      currency: session.currency,
-      status: 'completed',
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
-    };
-
-    await db.collection('orders').doc(session.id).set(order);
-
-    if (!customerDoc.exists) {
-      await customerRef.set({
-        email: session.customer_details.email,
-        orders: [session.id],
-        totalSpent: session.amount_total,
-      });
-    } else {
-      await customerRef.update({
-        orders: admin.firestore.FieldValue.arrayUnion(session.id),
-        totalSpent: admin.firestore.FieldValue.increment(session.amount_total),
-      });
+    let shippingDetailsHtml = "Fraktinformasjon ikke tilgjengelig";
+    if (shippingDetails.name) {
+      shippingDetailsHtml = `
+        <p>Leveringsdetaljer:<br>${shippingDetails.name}, ${shippingDetails.address.line1}, ${shippingDetails.address.city}</p>
+      `;
     }
 
     const productDetailsHtml = productsPurchased.map(product => 
-      `<li>${product.name} - Quantity: ${product.quantity} - Price: ${(product.unitPrice / 100).toFixed(2)}</li>`
+      `<li>${product.name} - Antall: ${product.quantity} - Pris: ${(product.unitPrice / 100).toFixed(2)} NOK</li>`
     ).join('');
 
-    const messageForCustomer = `
-      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif;">
-        <tr>
-          <td align="center">
-            <table width="100%" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6" style="max-width: 600px;">
-              <tr bgcolor="#9dd2ac">
-                <td align="left" style="padding-bottom: 0; padding-top: 0;">
-                  <img src="https://h-l-i-c-ven.vercel.app/static/media/H%C3%98L_I_CVEN_GR%C3%98NN.85f3db364c841eeec633.png" alt="Logo" style="width: 120px; height: auto; display: block; margin: auto;">
-                </td>
-              </tr>
-              <tr bgcolor="#9dd2ac">
-                <td align="left" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">Ordrebekreftelse</td>
-              </tr>
-              <tr>
-                <td align="left" style="color: #333;">
-                  <p>Takk for din bestilling!</p>
-                  <p>Ordrenummer: ${session.id}</p>
-                  <p>Produkter:<br>${productDetailsHtml}</p>
-                  <p>Totalbeløp: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
-                  <p>Leveringsdetaljer:<br>${shippingDetails?.name}, ${shippingDetails?.address?.line1}, ${shippingDetails?.address?.city}</p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
-      `;
-
-
-
-      const messageForShopOwner = `
-        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif;">
-          <tr>
-            <td align="center">
-              <table width="100%" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6" style="max-width: 600px;">
-                <tr bgcolor="#9dd2ac">
-                  <td align="left" style="padding-bottom: 0; padding-top: 0;">
-                    <img src="https://h-l-i-c-ven.vercel.app/static/media/H%C3%98L_I_CVEN_GR%C3%98NN.85f3db364c841eeec633.png" alt="Logo" style="width: 120px; height: auto; display: block; margin: auto;">
-                  </td>
-                </tr>
-                <tr bgcolor="#9dd2ac">
-                  <td align="left" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">Ny ordre mottatt</td>
-                </tr>
-                <tr>
-                  <td align="left" style="color: #333;">
-                    <p>En ny ordre har blitt plassert. Ordrenummer: ${session.id}</p>
-                    <p>Produkter:<br>${productDetailsHtml}</p>
-                    <p>Totalbeløp: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
-                    <p>Kundens e-post: ${session.customer_details.email}</p>
-                    <p>Leveringsdetaljer:<br>${shippingDetails?.name}, ${shippingDetails?.address?.line1}, ${shippingDetails?.address?.city}</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-        `;
-
-      
-
-    // Send email to the customer
-    await sendMail(session.customer_details.email, "Ordre Bekreftelese", messageForCustomer)
+    const messageForCustomer = constructEmailMessage(session, productDetailsHtml, shippingDetailsHtml, true);
+    await sendMail(session.customer_details.email, "Ordrebekreftelse", messageForCustomer)
       .then(() => console.log('Email sent to customer.'))
       .catch(error => console.error('Failed to send email to customer', error));
 
-    // Send email to the shop owner
-    await sendMail(process.env.SHOP_OWNER_EMAIL, "Ny Ordre Mottatt", messageForShopOwner)
+    const messageForShopOwner = constructEmailMessage(session, productDetailsHtml, shippingDetailsHtml, false);
+    await sendMail(process.env.SHOP_OWNER_EMAIL, "Ny ordre mottatt", messageForShopOwner)
       .then(() => console.log('Email sent to shop owner.'))
       .catch(error => console.error('Failed to send email to shop owner', error));
 
@@ -272,6 +190,42 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (request, 
 
   response.json({ received: true });
 });
+
+
+function constructEmailMessage(session, productDetailsHtml, shippingDetailsHtml, isCustomer) {
+  const heading = isCustomer ? "Ordrebekreftelse" : "Ny ordre mottatt";
+  const imageUrl = "https://h-l-i-c-ven.vercel.app/static/media/H%C3%98L_I_CVEN_GR%C3%98NN.85f3db364c841eeec633.png";
+  const emailGreeting = isCustomer ? "<p>Takk for din bestilling!</p>" : "<p>En ny ordre har blitt plassert.</p>";
+  const orderNumberDisplay = `<p>Ordrenummer: ${session.id}</p>`;
+
+  return `
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif;">
+      <tr>
+        <td align="center">
+          <table width="100%" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6" style="max-width: 600px;">
+            <tr bgcolor="#9dd2ac">
+              <td align="center" style="padding-bottom: 0; padding-top: 0;">
+                <img src="${imageUrl}" alt="Logo" style="width: 120px; height: auto; display: block; margin: auto;">
+              </td>
+            </tr>
+            <tr bgcolor="#9dd2ac">
+              <td align="center" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">${heading}</td>
+            </tr>
+            <tr>
+              <td align="left" style="color: #333;">
+                ${emailGreeting}
+                ${orderNumberDisplay}
+                <p>Produkter:<br><ul style="list-style-type: none; padding: 0;">${productDetailsHtml}</ul></p>
+                <p>Totalbeløp: ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+                ${shippingDetailsHtml}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  `;
+}
 
 
 // Assuming you've already set up Express (`app`) and Firestore (`db`)
@@ -379,12 +333,10 @@ app.post('/api/send-confirmation', async (req, res) => {
 
 
 function constructEmailBody(order) {
-  // Generate the HTML for each product
   const productsHtml = order.productsPurchased.map(product =>
     `<li>${product.name} - Antall: ${product.quantity} - Pris: ${(product.unitPrice / 100).toFixed(2)} NOK</li>`
   ).join('');
 
-  // Generate the HTML for shipping details
   let shippingDetailsHtml = "Fraktinformasjon ikke tilgjengelig";
   if (order.shippingDetails && order.shippingDetails.address) {
     shippingDetailsHtml = `
@@ -393,37 +345,27 @@ function constructEmailBody(order) {
     `;
   }
 
-  // Image URL
   const imageUrl = "https://h-l-i-c-ven.vercel.app/static/media/H%C3%98L_I_CVEN_GR%C3%98NN.85f3db364c841eeec633.png";
 
-  // Construct the email body using the table layout
   return `
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
       <tr>
-        <td align="center">
-          <table width="100%" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6" style="max-width: 600px;">
-            <tr bgcolor="#9dd2ac">
-              <td align="left" style="padding-bottom: 0; padding-top: 0;">
-                <img src="${imageUrl}" alt="Logo" style="width: 120px; height: auto; display: block; margin: auto;">
-              </td>
-            </tr>
-            <tr bgcolor="#9dd2ac">
-              <td align="left" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">Din kaffe er på vei!</td>
-            </tr>
-            <tr>
-              <td align="left" style="color: #333;">
-                <p>Vi har sendt din bestilling, og den er nå på vei til deg.</p>
-                <h2>Detaljer om bestillingen:</h2>
-                <ul style="list-style-type: none; padding: 0;">
-                  ${productsHtml}
-                </ul>
-                <p><strong>Totalbeløp:</strong> ${(order.totalAmount / 100).toFixed(2)} NOK</p>
-                <h2>Fraktinformasjon:</h2>
-                ${shippingDetailsHtml}
-                <p>Takk for at du valgte oss. Vi håper du vil nyte kaffen!</p>
-              </td>
-            </tr>
-          </table>
+        <td align="center" bgcolor="#9dd2ac" style="padding: 20px;">
+          <img src="${imageUrl}" alt="Logo" style="width: 100px; height: auto; margin-bottom: 20px;">
+          <h1 style="color: white; font-size: 24px; margin: 0;">Din kaffe er på vei!</h1>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 20px; background-color: #f6f6f6;">
+          <p>Vi har sendt din bestilling, og den er nå på vei til deg.</p>
+          <h2>Detaljer om bestillingen:</h2>
+          <ul style="list-style-type: none; padding: 0;">
+            ${productsHtml}
+          </ul>
+          <p><strong>Totalbeløp:</strong> ${(order.totalAmount / 100).toFixed(2)} NOK</p>
+          <h2>Fraktinformasjon:</h2>
+          ${shippingDetailsHtml}
+          <p>Takk for at du valgte oss. Vi håper du vil nyte kaffen!</p>
         </td>
       </tr>
     </table>
@@ -431,57 +373,35 @@ function constructEmailBody(order) {
 }
 
 function constructShopOwnerEmailBody(order) {
-  // Ensure order.id is correctly passed to this function
-  const orderId = order.id || 'Unknown Order ID'; // Fallback in case order.id is undefined
-
-  // Generate the HTML for each product
   const productsHtml = order.productsPurchased.map(product =>
     `<li>${product.name} - Antall: ${product.quantity} - Pris: ${(product.unitPrice / 100).toFixed(2)} NOK</li>`
   ).join('');
 
-  // Image URL
   const imageUrl = "https://h-l-i-c-ven.vercel.app/static/media/H%C3%98L_I_CVEN_GR%C3%98NN.85f3db364c841eeec633.png";
 
-  // Construct the email body using the table layout
   return `
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
       <tr>
-        <td align="center">
-          <table width="100%" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6" style="max-width: 600px;">
-            <tr bgcolor="#9dd2ac">
-              <td align="center" style="padding-bottom: 0; padding-top: 0;">
-                <img src="${imageUrl}" alt="Logo" style="width: 120px; height: auto; display: block; margin: auto;">
-              </td>
-            </tr>
-            <tr bgcolor="#9dd2ac">
-              <td align="center" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">Ny ordre mottatt!</td>
-            </tr>
-            <tr>
-              <td align="left" style="color: #333;">
-                <p>En ny ordre har blitt plassert. Ordre Nummer: <strong>${orderId}</strong></p>
-                <h2>Detaljer om bestillingen:</h2>
-                <ul style="list-style-type: none; padding: 0;">
-                  ${productsHtml}
-                </ul>
-                <p><strong>Totalbeløp:</strong> ${(order.totalAmount / 100).toFixed(2)} NOK</p>
-                <p><strong>Kundens e-post:</strong> <a href="mailto:${order.email}" style="color: #3498db;">${order.email}</a></p>
-                <p>Takk for at du bruker vår tjeneste.</p>
-              </td>
-            </tr>
-          </table>
+        <td align="center" bgcolor="#9dd2ac" style="padding: 20px;">
+          <img src="${imageUrl}" alt="Logo" style="width: 100px; height: auto; margin-bottom: 20px;">
+          <h1 style="color: white; font-size: 24px; margin: 0;">Ny ordre mottatt!</h1>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 20px; background-color: #f6f6f6;">
+          <p>En ny ordre har blitt plassert. Ordre Nummer: <strong>${order.id}</strong></p>
+          <h2>Detaljer om bestillingen:</h2>
+          <ul style="list-style-type: none; padding: 0;">
+            ${productsHtml}
+          </ul>
+          <p><strong>Totalbeløp:</strong> ${(order.totalAmount / 100).toFixed(2)} NOK</p>
+          <p><strong>Kundens e-post:</strong> <a href="mailto:${order.email}" style="color: #3498db;">${order.email}</a></p>
+          <p>Takk for at du bruker vår tjeneste.</p>
         </td>
       </tr>
     </table>
   `;
 }
-
-
-
-
-
-
-
-
 
 
 const PORT = process.env.PORT || 4242;
