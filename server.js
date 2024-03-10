@@ -431,6 +431,9 @@ function constructEmailBody(order) {
 }
 
 function constructShopOwnerEmailBody(order) {
+  // Ensure order.id is correctly passed to this function
+  const orderId = order.id || 'Unknown Order ID'; // Fallback in case order.id is undefined
+
   // Generate the HTML for each product
   const productsHtml = order.productsPurchased.map(product =>
     `<li>${product.name} - Antall: ${product.quantity} - Pris: ${(product.unitPrice / 100).toFixed(2)} NOK</li>`
@@ -446,16 +449,16 @@ function constructShopOwnerEmailBody(order) {
         <td align="center">
           <table width="100%" border="0" cellspacing="0" cellpadding="20" bgcolor="#f6f6f6" style="max-width: 600px;">
             <tr bgcolor="#9dd2ac">
-              <td align="left" style="padding-bottom: 0; padding-top: 0;">
+              <td align="center" style="padding-bottom: 0; padding-top: 0;">
                 <img src="${imageUrl}" alt="Logo" style="width: 120px; height: auto; display: block; margin: auto;">
               </td>
             </tr>
             <tr bgcolor="#9dd2ac">
-              <td align="left" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">Ny ordre mottatt!</td>
+              <td align="center" style="color: white; font-size: 24px; padding-top: 10px; padding-bottom: 10px;">Ny ordre mottatt!</td>
             </tr>
             <tr>
               <td align="left" style="color: #333;">
-                <p>En ny ordre har blitt plassert. Ordre Nummer: <strong>${order.id}</strong></p>
+                <p>En ny ordre har blitt plassert. Ordre Nummer: <strong>${orderId}</strong></p>
                 <h2>Detaljer om bestillingen:</h2>
                 <ul style="list-style-type: none; padding: 0;">
                   ${productsHtml}
@@ -471,6 +474,7 @@ function constructShopOwnerEmailBody(order) {
     </table>
   `;
 }
+
 
 
 
